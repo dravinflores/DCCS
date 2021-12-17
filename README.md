@@ -49,11 +49,11 @@ we only have two choices: MSVC and Mingw. We will choose the former.
 
 Install [Visual Studio Community 2022][VS]. When in the installer, choose the
 *Desktop development with C++* option, as shown below.
-![Desktop development with C++]
+![](/documentation/images/desktop-development-cpp.png)
 
 As well, opt for the Windows 10 SDK shown below, which can be found in the
 *Individual components* tab.
-![Windows 10 SDK][sdk]
+![](/documentation/images/windows-10-sdk.png)
 
 ### Vcpkg
 As we are on Windows, and seeing as setting up Conan was proving far too
@@ -105,8 +105,6 @@ and prints out the test string, then we know that the build system has been
 properly set up. Congratulations!
 
 [VS]: https://visualstudio.microsoft.com/
-[cpp-img]: /documentation/images/desktop-development-cpp.png
-[sdk]: /documentation/images/windows-10-sdk.png
 [Vcpkg]: https://github.com/microsoft/vcpkg
 [fmt]: https://github.com/fmtlib/fmt
 
