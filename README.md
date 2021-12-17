@@ -49,11 +49,11 @@ we only have two choices: MSVC and Mingw. We will choose the former.
 
 Install [Visual Studio Community 2022][VS]. When in the installer, choose the
 *Desktop development with C++* option, as shown below.
-![IMG-1](documentation/images/desktop-development-cpp.png)
+![IMG-1](documentation/images/desktop-development-cpp.PNG)
 
 As well, opt for the Windows 10 SDK shown below, which can be found in the
 *Individual components* tab.
-![IMG-2](documentation/images/windows-10-sdk.png)
+![IMG-2](documentation/images/windows-10-sdk.PNG)
 
 ### Vcpkg
 As we are on Windows, and seeing as setting up Conan was proving far too
