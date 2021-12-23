@@ -1,6 +1,6 @@
 # CMakeLists.txt
 
-add_library(psuobj psu.cpp)
+add_library(psuobj STATIC psu.cpp)
 # target_include_directories(psuobj PRIVATE ./)
 
 # Quick note on the CAEN HV Wrapper Library: the only files that actually

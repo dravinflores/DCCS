@@ -49,10 +49,12 @@ we only have two choices: MSVC and Mingw. We will choose the former.
 
 Install [Visual Studio Community 2022][VS]. When in the installer, choose the
 *Desktop development with C++* option, as shown below.
+
 ![IMG-1](documentation/images/desktop-development-cpp.PNG)
 
 As well, opt for the Windows 10 SDK shown below, which can be found in the
 *Individual components* tab.
+
 ![IMG-2](documentation/images/windows-10-sdk.PNG)
 
 ### Vcpkg
@@ -72,6 +74,19 @@ following commands:
 > .\vcpkg\bootstrap-vcpkg.bat
 > .\vcpkg\vcpkg integrate install
 ```
+
+
+### A Little Note on Vcpkg
+A big part of the reason to use Vcpkg was that it made installing external
+dependencies much simpler. However, Vcpkg itself has one notable flaw: it 
+defaults to generating dynamic libraries. This is a huge pain, as this meant
+having to package up all the DLL's with the executable. 
+
+It took a great amount of time to figure out how in the world to overwrite this
+default behavior. So it should be noted that, without directly specifying the
+use of static libraries, Vcpkg will resign to create dynamic libraries. Just
+something to be aware of.
+
 
 ### Testing
 We can now check that everything has been set up properly. Navigate into the
@@ -93,12 +108,15 @@ int main(int argc, char** argv)
 We can compile this code by issuing the following commands:
 ```cmd
 > mkdir build
-> cmake -B build -S ./ \
+> cmake -B build -S ./
     -DCMAKE_TOOLCHAIN_FILE=C:\development\vcpkg\scripts\buildsystems\vcpkg.cmake
 > cmake --build build
 > cd build/Debug
 > ./test_program.exe
 ```
+
+It should be noted that the CMake build command is one entire line. It should
+be noted that Windows treats multi-line commands as separate commands.
 
 If the program installs the [fmt][] dependency, builds the program, executes,
 and prints out the test string, then we know that the build system has been
@@ -116,3 +134,20 @@ recommended that the program be installed to:
 location.
 
 [hv-wrapper]: https://www.caen.it/products/caen-hv-wrapper-library/
+
+
+## Building The Project
+In order to build this project, MSVC, Vcpkg, and CMake must be installed. As
+well, the CAEN HV Wrapper Library must be installed. To install, issue the
+following commands:
+
+```cmd
+> mkdir build
+> cmake -B build -S ./
+    -DCMAKE_BUILD_TYPE=Debug 
+    -DCMAKE_TOOLCHAIN_FILE=C:\development\vcpkg\scripts\buildsystems\vcpkg.cmake
+    -D VCPKG_TARGET_TRIPLET=x64-windows-static 
+> cmake --build build
+> cd build/Debug
+> ./dccs.exe
+```

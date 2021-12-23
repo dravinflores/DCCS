@@ -22,6 +22,9 @@
 #include <chrono>
 #include <thread>
 
+// We need to write this one out...
+#include <cstring>
+
 #include <CAENHVWrapper.h>
 
 namespace msu_smdt
@@ -62,7 +65,12 @@ namespace msu_smdt
 
         void print_internal_com_port_string();
 
+        void power_on_channel(int);
+        void power_off_channel(int);
+        double read_current(int);
+
     private:
-        std::string_view com_port_str;
+        std::string com_port_str;
+        int handle;
     };
 }

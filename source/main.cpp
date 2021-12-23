@@ -18,14 +18,34 @@
 
 int main(int argc, char** argv)
 {
-    fmt::print("Hello, World!\n");
+    // fmt::print("Hello, World!\n");
+    fmt::print("\nPrinting arguments passed in to main.\n");
+
+    for (int i = 0; i < argc; ++i)
+    {
+        fmt::print("\tArg {}: {}\n", i, argv[i]);
+    }
+
+    fmt::print("We will assume that Arg 1 being passed in means specifying ");
+    fmt::print("the COM Port.\n\n");
+
+    char* com_port;
+
+    if (argc > 1)
+    {
+        com_port = argv[1];
+    }
+    else
+    {
+        com_port = "COM4";
+    }
 
     msu_smdt::com_port fake_com_port_connection {
-        /* port */          "COM1",
+        /* port */          com_port,
         /* baud_rate */     "9600",
         /* data_bit */      "8",
-        /* stop_bit */      "1",
-        /* parity */        "None",
+        /* stop_bit */      "0",
+        /* parity */        "0",
         /* lbusaddress */   "0"
     };
 
