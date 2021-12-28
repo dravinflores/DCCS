@@ -38,7 +38,7 @@ The roadmap for development is the following:
 - [ ] Ensure the program can execute a Dark Current Test
 
 
-## Setting Up The Developer Environment
+## Setting Up The Development Environment
 ### Obtaining Visual Studio 2022 and MSVC
 Oh joy! The absolute fun part! (I mean this with as much sarcasm as I can 
 conjure up). This part is terrible. And it is especially terrible on Windows.
@@ -105,7 +105,10 @@ int main(int argc, char** argv)
 }
 ```
 
-We can compile this code by issuing the following commands:
+We can compile this code by issuing the following commands. Do note that
+multi-line commands are usually not accepted, and are parsed as separate
+commands. In order to rectify this, delete the newline and paste as a single
+command.
 ```cmd
 > mkdir build
 > cmake -B build -S ./
@@ -138,8 +141,9 @@ location.
 
 ## Building The Project
 In order to build this project, MSVC, Vcpkg, and CMake must be installed. As
-well, the CAEN HV Wrapper Library must be installed. To install, issue the
-following commands:
+well, the CAEN HV Wrapper Library must be installed. Note that multi-line
+commands are usually not parsed as a single command. The newlines must be
+removed before execution. To build, issue the following commands:
 
 ```cmd
 > mkdir build
