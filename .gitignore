@@ -1,2 +1,5 @@
 # We want to ignore the build folder if it is present.
 build/
+
+# We want to ignore MacOS specific items
+*.DS_Store

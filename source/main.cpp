@@ -18,7 +18,6 @@
 
 int main(int argc, char** argv)
 {
-    // fmt::print("Hello, World!\n");
     fmt::print("\nPrinting arguments passed in to main.\n");
 
     for (int i = 0; i < argc; ++i)
@@ -26,22 +25,10 @@ int main(int argc, char** argv)
         fmt::print("\tArg {}: {}\n", i, argv[i]);
     }
 
-    fmt::print("We will assume that Arg 1 being passed in means specifying ");
-    fmt::print("the COM Port.\n\n");
-
-    char* com_port;
-
-    if (argc > 1)
-    {
-        com_port = argv[1];
-    }
-    else
-    {
-        com_port = "COM4";
-    }
+    fmt::print("\n");
 
     msu_smdt::com_port fake_com_port_connection {
-        /* port */          com_port,
+        /* port */          "COM4",
         /* baud_rate */     "9600",
         /* data_bit */      "8",
         /* stop_bit */      "0",
@@ -49,7 +36,14 @@ int main(int argc, char** argv)
         /* lbusaddress */   "0"
     };
 
-    msu_smdt::psu psuobj(fake_com_port_connection);
+    try
+    {
+        msu_smdt::psu psuobj(fake_com_port_connection);
+    }
+    catch(const std::exception& e)
+    {
+        fmt::print("Unable to connect: {}\n\n", e.what());
+    }
 
     return 0;
 }
