@@ -3,3 +3,6 @@ build/
 
 # We want to ignore MacOS specific items
 *.DS_Store
+
+# VS Code keeps adding it's own config file. 
+.vscode/
