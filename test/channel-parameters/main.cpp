@@ -1,7 +1,20 @@
+#include <map>
 #include <string>
+#include <vector>
 #include <iostream>
 
 #include <CAENHVWrapper.h>
+
+enum class property_type
+{
+    Float,
+    EnumeratedBoolean,
+    BitField,
+    Integer,
+    CString,
+    UnsignedShort,
+    Default
+};
 
 int main(int argc, char** argv)
 {
@@ -67,7 +80,175 @@ int main(int argc, char** argv)
         std::cout << "\tParameter " << i << ": " << parameter[i] << "\n";
     }
 
+    std::cout << "\n";
+
     CAENHV_Free(parameter_name_list);
+
+    std::vector<std::string> channel_parameter_names {
+        "VSet",
+        "VMon",
+        "ISet",
+        "ImonRange",
+        "IMonL",
+        "IMonH",
+        "MaxV",
+        "RUp",
+        "RDwn",
+        "Trip",
+        "PDwn",
+        "Polarity",
+        "ChStatus",
+        "Pw"
+    };
+
+    std::vector<std::string> property_units {
+        "None",
+        "A",
+        "V",
+        "W",
+        "C",
+        "Hz",
+        "Bar",
+        "V/s",
+        "s",
+        "RPM",
+        "counts",
+        "bit",
+        "aps"
+    };
+
+    unsigned long property_value_type;
+
+    for (auto& name : channel_parameter_names)
+    {
+        // For a particular parameter, get the property and type of property.
+        CAENHVRESULT result_a = CAENHV_GetChParamProp(
+            handle,
+            0,
+            0,
+            name.data(),
+            "Type",
+            &property_value_type
+        );
+
+        std::cout << "For parameter: " << name << "\n";
+
+        if (property_value_type == PARAM_TYPE_NUMERIC)
+        {
+            std::cout << "\tType: Float\n";
+
+            double minval = 0.00;
+            double maxval = 0.00;
+            unsigned short unit = 0;
+            short exp = 0;
+
+            CAENHVRESULT result_b = CAENHV_GetChParamProp(
+                handle,
+                0,
+                0,
+                name.data(),
+                "Minval",
+                &minval
+            );
+
+            std::cout << "\t\tMinval: " << minval << "\n";
+
+            CAENHVRESULT result_c = CAENHV_GetChParamProp(
+                handle,
+                0,
+                0,
+                name.data(),
+                "Maxval",
+                &maxval
+            );
+
+            std::cout << "\t\tMaxval: " << maxval << "\n";
+
+            CAENHVRESULT result_d = CAENHV_GetChParamProp(
+                handle,
+                0,
+                0,
+                name.data(),
+                "Unit",
+                &unit
+            );
+
+            CAENHVRESULT result_e = CAENHV_GetChParamProp(
+                handle,
+                0,
+                0,
+                name.data(),
+                "Exp",
+                &exp
+            );
+
+            std::cout 
+                << "\t\tUnit: " 
+                << "E" 
+                << exp 
+                << " "
+                << property_units[unit] 
+                << "\n";
+
+        }
+        else if (property_value_type == PARAM_TYPE_ONOFF)
+        {
+            std::cout << "\tType: Enumerated Boolean\n";
+            char state[30];
+
+            CAENHVRESULT result_f = CAENHV_GetChParamProp(
+                handle,
+                0,
+                0,
+                name.data(),
+                "Onstate",
+                state
+            );
+
+            std::cout << "\t\tOnstate: " << state << "\n";
+
+            CAENHVRESULT result_g = CAENHV_GetChParamProp(
+                handle,
+                0,
+                0,
+                name.data(),
+                "Offstate",
+                state
+            );
+
+            std::cout << "\t\tOffstate: " << state << "\n";
+        }
+        else if (property_value_type == PARAM_TYPE_CHSTATUS)
+        {
+            std::cout << "\tType: Bit Field\n";
+            std::cout << "\t\tNo Extra Parameters\n";
+        }
+        else if (property_value_type == PARAM_TYPE_BDSTATUS)
+        {
+            std::cout << "\tType: Bit Field\n";
+            std::cout << "\t\tNo Extra Parameters\n";
+        }
+        else if (property_value_type == PARAM_TYPE_BINARY)
+        {
+            std::cout << "\tType: Integer\n";
+            std::cout << "\t\tNo Extra Parameters\n";
+        }
+        else if (property_value_type == PARAM_TYPE_STRING)
+        {
+            std::cout << "\tType: C String\n";
+            std::cout << "\t\tNo Extra Parameters\n";
+        }
+        else if (property_value_type == PARAM_TYPE_ENUM)
+        {
+            std::cout << "\tType: Enumeration\n";
+            std::cout << "\t\tExtra Parameters (Not Listed).\n";
+        }
+        else
+        {
+            std::cout << "\tUnknown Type\n";
+        }
+    }
+
 
     CAENHVRESULT deinit_result = CAENHV_DeinitSystem(handle);
 
