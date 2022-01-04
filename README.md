@@ -88,7 +88,7 @@ use of static libraries, Vcpkg will resign to create dynamic libraries. Just
 something to be aware of.
 
 
-### Testing
+### Testing The Development Environment
 We can now check that everything has been set up properly. Navigate into the
 following folder: `test/check-development-environment`. Inside, there is a demo
 project which we can compile. The source code looks like the following:
@@ -110,6 +110,7 @@ multi-line commands are usually not accepted, and are parsed as separate
 commands. In order to rectify this, delete the newline and paste as a single
 command.
 ```cmd
+> cd test/check-development-environment
 > mkdir build
 > cmake -B build -S ./
     -DCMAKE_TOOLCHAIN_FILE=C:\development\vcpkg\scripts\buildsystems\vcpkg.cmake
@@ -137,6 +138,22 @@ recommended that the program be installed to:
 location.
 
 [hv-wrapper]: https://www.caen.it/products/caen-hv-wrapper-library/
+
+
+### Testing the CAEN HV Wrapper Library
+The test project can be found at `test/channel-parameters`. This program can
+be compiled using the following commands:
+```cmd
+> cd test/channel-parameters
+> mkdir build
+> cd build
+> cmake ..
+> cmake --build ./
+> ./Debug/test.exe
+```
+
+The purpose of this program is to connect to the power supply, initialize the
+power supply, and then make the attempt to read out the channel parameters.
 
 
 ## Building The Project
