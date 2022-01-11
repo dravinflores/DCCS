@@ -182,11 +182,29 @@ int main(int argc, char** argv)
                 &exp
             );
 
+            char unit_prefix = '';
+            switch (exp)
+            {
+            case -3:
+                unit_prefix = 'm';
+                break;
+            case -6:
+                unit_prefix = 'u';
+                break;
+            case 3:
+                unit_prefix = 'K';
+                break;
+            case 6:
+                unit_prefix = 'M';
+                break;
+            default:
+                unit_prefix = '';
+                break;
+            }
+
             std::cout 
                 << "\t\tUnit: " 
-                << "E" 
-                << exp 
-                << " "
+                << unit_prefix
                 << property_units[unit] 
                 << "\n";
 
