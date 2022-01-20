@@ -1,5 +1,5 @@
 /*******************************************************************************
- *  File:           PSU/psu.hpp
+ *  File:           psu/psu.hpp
  *  Author(s):      Dravin Flores <dravinflores@gmail.com>
  *  Date Created:   17 December, 2021
  * 
@@ -18,17 +18,13 @@
 
 #include <string>
 #include <string_view>
-
 #include <vector>
-
 #include <chrono>
 #include <thread>
-
-// We need to write this one out...
 #include <cstring>
-
-// This is for throwing runtime exceptions.
 #include <stdexcept>
+
+#include <psu/channel.hpp>
 
 #include <CAENHVWrapper.h>
 
@@ -44,20 +40,13 @@ namespace msu_smdt
         std::string_view lbusaddress;
     };
 
-    enum class polarity
-    {
-        normal,
-        reverse,
-        simultaneous
-    };
-
     class psu
     {
     public:
-        // Here is our normal constructor. Notice that we are expecting a 
-        // constant reference to the com_port structure. Hence, the structure
-        // must exist in some capacity. The normal behavior is that the com_port
-        // struct is first created, and then passed in.
+        // The only allowed constructor. We expect the caller to create a
+        // com_port struct, and then pass it in as a constant reference.
+        // This constructor is allowed to throw if the computer has any 
+        // issues connecting to the power supply.
         psu(const msu_smdt::com_port&);
 
         // We do not want to be able to move a psu object. This is because
@@ -74,38 +63,23 @@ namespace msu_smdt
         // Just our typical destructor.
         ~psu();
 
-        // The following are internal functions.
-        void print_internal_com_port_string();
-
-        int get_number_of_channels();
-        void set_number_of_channels(int);
-
-        polarity get_channel_polarity(int);
-
-        void power_on_channel(int);
-        void power_off_channel(int);
-        void kill_all();
-        void enable_all();
-        void disable_all();
-
-        double read_current(int);
-        double read_voltage(int);
-
-        void adjust_for_intrinsic_current();
-
-        // For all intents and purposes, this is the main function that will
-        // be called for a PSUOBJ. Internally, this function can all many
-        // other functions.
         void start_test(int);
 
+        void print_internal_com_port_string();
+
     private:
+        // Here are all the board specific pieces of information.
         std::string com_port_str;
         int handle;
         int number_of_channels;
         int serial_number;
         int slot;
         std::string firmware_version;
-        std::vector<int> channel_list;
-        std::vector<double> channel_intrinsic_currents;
+        
+        // Now we will have the channels here.
+        channel CH0;
+        channel CH1;
+        channel CH2;
+        channel CH3;
     };
 }

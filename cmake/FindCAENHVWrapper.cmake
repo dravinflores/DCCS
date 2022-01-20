@@ -13,36 +13,36 @@ include(FindPackageHandleStandardArgs)
 find_library(
     CAENHVWrapper_LIBRARY
     NAMES CAENHVWrapper
-    HINTS "C:/Program Files/CAEN/HV/CAENHVWrapper"
+    PATHS "C:/Program Files/CAEN/HV/CAENHVWrapper"
     PATH_SUFFIXES "lib/x86_64/"
     DOC "The CAEN HV Wrapper Library"
+    REQUIRED
 )
 
 find_path(
     CAENHVWrapper_INCLUDE_DIR
     NAMES "CAENHVWrapper.h"
-    HINTS "C:/Program Files/CAEN/HV/CAENHVWrapper"
+    PATHS "C:/Program Files/CAEN/HV/CAENHVWrapper"
     PATH_SUFFIXES "include/"
     DOC "The header file for the CAEN HV Wrapper Library"
 )
 
 find_package_handle_standard_args(
-    CAENHVWrapper DEFAULT_MSG
+    CAENHVWrapper 
+    DEFAULT_MSG
     CAENHVWrapper_LIBRARY
     CAENHVWrapper_INCLUDE_DIR
 )
 
 mark_as_advanced(CAENHVWrapper_LIBRARY CAENHVWrapper_INCLUDE_DIR)
 
-if(CAENHVWrapper_FOUND AND NOT TARGET CAENHVWraooer::CAENHVWrapper)
-    add_library(CAENHVWrapper::CAENHVWrapper STATIC IMPORTED)
+if(CAENHVWrapper_FOUND AND NOT TARGET CAENHVWrapper::CAENHVWrapper)
+    add_library(CAENHVWrapper::CAENHVWrapper STATIC IMPORTED GLOBAL)
+    
     set_target_properties(
         CAENHVWrapper::CAENHVWrapper
         PROPERTIES
-            INTERFACE_INCLUDE_DIRECTORIES "${CAENHVWrapper_INCLUDE_DIR}"
             IMPORTED_LOCATION "${CAENHVWrapper_LIBRARY}"
-    )
-    target_include_directories(
-        CAENHVWrapper::CAENHVWrapper INTERFACE "${CAENHVWrapper_INCLUDE_DIR}"
+            INTERFACE_INCLUDE_DIRECTORIES "${CAENHVWrapper_INCLUDE_DIR}"
     )
 endif()
