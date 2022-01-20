@@ -34,13 +34,23 @@ namespace msu_smdt
         CH0                 { channel() },
         CH1                 { channel() },
         CH2                 { channel() },
-        CH3                 { channel() },
+        CH3                 { channel() }
     {}
 
     psu::~psu()
-    {}
+    {
+    #ifndef NDEBUG
+        print_internal_com_port_string();
+    #endif // NDEBUG
 
-    psu::initialize(const com_port& com_port_info)
+        // Because this destructor is guaranteed to no-throw, we're going to
+        // simply ignore this result. Even if we cannot deinitialize from the
+        // system.
+        // TODO: Find a better way to deinitialize. Maybe some hard reset?
+        CAENHVRESULT result = CAENHV_DeinitSystem(this->handle);
+    }
+
+    void psu::initialize(const com_port& com_port_info)
     {
         // We need to check that the proper com_port struct was passed in.
         bool is_empty = com_port_info.port.empty()              \
@@ -256,18 +266,6 @@ namespace msu_smdt
         this->CH3.initialize(common_channel_info, 3);
     }
 
-    psu::~psu()
-    {
-    #ifndef NDEBUG
-        print_internal_com_port_string();
-    #endif // NDEBUG
-
-        // Because this destructor is guaranteed to no-throw, we're going to
-        // simply ignore this result. Even if we cannot deinitialize from the
-        // system.
-        // TODO: Find a better way to deinitialize. Maybe some hard reset?
-        CAENHVRESULT result = CAENHV_DeinitSystem(this->handle);
-    }
     
     void psu::start_test(int reserve)
     {

@@ -87,8 +87,8 @@ namespace msu_smdt
 
         interchannel info {
             .handle         { -1 },
-            .slot           { -1 },
-            .channel_list   { -3, -4, -5, -6 }
+            .slot           { 512 },
+            .channel_list   { 512, 512, 512, 512 }
         };
 
         int channel_number = -1;
@@ -119,11 +119,11 @@ namespace msu_smdt
     channel::channel(const channel& copy):
         info                            { copy.info },
         channel_number                  { copy.channel_number },
-        m_is_using_zero_current_adjust  { copy.is_using_zero_current_adjust },
+        is_using_zero_current_adjust    { copy.is_using_zero_current_adjust },
         intrinsic_current               { copy.intrinsic_current }
     {}
 
-    channel::channel& operator=(const channel&)
+    channel& channel::operator=(const channel& copy)
     {
         // Checking for self assignment.
         if (this != &copy)
@@ -288,7 +288,7 @@ namespace msu_smdt
     }
 
 
-    void channel::set_voltage_increase_rate(double)
+    void channel::set_voltage_increase_rate(double rate)
     {
         // For safety reasons, we will limit to 1000 V/s.
         if ((rate < 0.00) || (rate > 1000.00))
@@ -316,7 +316,7 @@ namespace msu_smdt
         }
     }
 
-    void channel::set_voltage_decrease_rate(double)
+    void channel::set_voltage_decrease_rate(double rate)
     {
         // For safety reasons, we will limit to 1000 V/s.
         if ((rate < 0.00) || (rate > 1000.00))
@@ -403,7 +403,7 @@ namespace msu_smdt
         }
 
         // Here we would adjust for the parasitic current.
-        if (this->m_is_using_zero_current_adjust)
+        if (this->is_using_zero_current_adjust)
         {
             current -= this->intrinsic_current;
         }
