@@ -24,10 +24,23 @@
 
 namespace msu_smdt
 {
-    // The purpose of this constructor is to initialize the PSUOBJ. Then
-    // this constructor will attempt to connect to the power supply, followed
-    // by setting all the internal variables to reflect this connection.
-    psu::psu(const com_port& com_port_info)
+    psu::psu():
+        com_port_str        { "DEFAULT" },
+        handle              { -1 },
+        number_of_channels  { -1 },
+        serial_number       { -1 },
+        slot                { -1 },
+        firmware_version    { "DEFAULT" },
+        CH0                 { channel() },
+        CH1                 { channel() },
+        CH2                 { channel() },
+        CH3                 { channel() },
+    {}
+
+    psu::~psu()
+    {}
+
+    psu::initialize(const com_port& com_port_info)
     {
         // We need to check that the proper com_port struct was passed in.
         bool is_empty = com_port_info.port.empty()              \
@@ -201,7 +214,7 @@ namespace msu_smdt
         fmt::print("\tChannels available: {}\n", number_of_channels_list[0]);
         fmt::print("\tSerial: {}\n", serial_number_list[0]);
         fmt::print(
-            "\tFirmware: {}.{}", 
+            "\tFirmware: {}.{}\n", 
             firmware_release_max_list[0], 
             firmware_release_minimum_list[0]
         );
@@ -237,10 +250,10 @@ namespace msu_smdt
 
         // From the channel constructor, these channels will 
         // default being off.
-        msu_smdt::channel CH0(common_channel_info, 0);
-        msu_smdt::channel CH1(common_channel_info, 1);
-        msu_smdt::channel CH2(common_channel_info, 2);
-        msu_smdt::channel CH3(common_channel_info, 3);
+        this->CH0.initialize(common_channel_info, 0);
+        this->CH1.initialize(common_channel_info, 1);
+        this->CH2.initialize(common_channel_info, 2);
+        this->CH3.initialize(common_channel_info, 3);
     }
 
     psu::~psu()
@@ -263,7 +276,7 @@ namespace msu_smdt
         // For now, we'll just test the functionality of CH0.
         fmt::print("Testing the connection to CH0\n");
 
-        if (CH0.get_polarity() == polarity::normal)
+        if (CH0.read_polarity() == polarity::normal)
         {
             fmt::print("\tPolarity: +\n");
         }
@@ -272,21 +285,21 @@ namespace msu_smdt
             fmt::print("\tPolarity: -\n");
         }
         
-        fmt::print("\tCurrent: {}\n", CH0.get_current());
+        fmt::print("\tCurrent: {}\n", CH0.read_current());
 
         fmt::print("\tVoltage: {}\n", CH0.read_voltage());
 
-        fmt::print("\tChannel Status: {#B}\n", CH0.get_status());
+        fmt::print("\tChannel Status: {#B}\n", CH0.read_status());
 
         fmt::print("Attempting to cycle power\n");
 
         fmt::print("\tPowering on\n");
         CH0.power_on();
-        fmt::print("\t\tStatus: {}\n", CH0.get_status() & status::ON);
+        fmt::print("\t\tStatus: {}\n", CH0.read_status() & status::ON);
 
         fmt::print("\tPowering off\n");
         CH0.power_off();
-        fmt::print("\t\tStatus: {}\n", !(CH0.get_status() & status::ON));
+        fmt::print("\t\tStatus: {}\n", !(CH0.read_status() & status::ON));
 
         fmt::print("Finished checking connection\n\n");
     }

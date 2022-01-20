@@ -65,24 +65,18 @@ namespace msu_smdt
     {
     public:
         channel();
-        channel(interchannel, int);
-        channel(channel&&) noexcept;
-        channel(const channel&);
-        channel& operator=(channel&&) noexcept;
-        channel& operator=(const channel&);
         ~channel();
 
-        void set_voltage(double);
-        double read_voltage();
+        channel(const channel&);
+        channel& operator=(const channel&);
 
-        void set_current(double);
+        channel(channel&&) noexcept = delete;
+        channel& operator=(channel&&) noexcept = delete;
+        
+        void initialize(const interchannel&, int);
 
-        // If the current is between in the range of 0-2 uA, then
-        // the current range will switch to low, and the readings
-        // will be (+/-) 0.5 nA.
-        double get_current();
-
-        polarity get_polarity();
+        void set_operating_voltage(double);
+        void set_current_limit(double);
 
         void set_voltage_limit(double);
         void set_overcurrent_time_limit(double);
@@ -90,23 +84,22 @@ namespace msu_smdt
         void set_voltage_increase_rate(double);
         void set_voltage_decrease_rate(double);
 
-        void adjust_for_zero_current();
-        bool is_using_zero_current_adjust();
+        double read_current();
+        double read_voltage();
+        polarity read_polarity();
+        uint_fast32_t read_status();
 
-        void read_status();
-        uint_fast32_t get_status();
+        void interpret_status();
 
         void power_on();
         void power_off();
-
-        void kill();
+        void force_power_off();
 
     private:
-        interchannel info;
-        std::string name;
-        int channel_number;
-        bool m_is_using_zero_current_adjust;
-        double intrinsic_current;
-        uint_fast32_t status;
+        interchannel    info;
+        int             channel_number;
+
+        bool            is_using_zero_current_adjust;
+        double          intrinsic_current;
     };
 }

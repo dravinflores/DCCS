@@ -43,11 +43,9 @@ namespace msu_smdt
     class psu
     {
     public:
-        // The only allowed constructor. We expect the caller to create a
-        // com_port struct, and then pass it in as a constant reference.
-        // This constructor is allowed to throw if the computer has any 
-        // issues connecting to the power supply.
-        psu(const msu_smdt::com_port&);
+        // The default constructor. This is the only viable constructor.
+        // A separate constructor is allowed for debugging purposes.
+        psu();
 
         // We do not want to be able to move a psu object. This is because
         // we would need to reinitialize with the power supply upon the move.
@@ -62,6 +60,8 @@ namespace msu_smdt
 
         // Just our typical destructor.
         ~psu();
+
+        void initialize(const msu_smdt::com_port&);
 
         void start_test(int);
 
