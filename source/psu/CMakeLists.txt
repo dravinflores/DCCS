@@ -6,26 +6,33 @@
 # the finding of the library here.
 list(APPEND CMAKE_MODULE_PATH "${CMAKE_SOURCE_DIR}/cmake/")
 find_package(CAENHVWrapper REQUIRED)
+find_package(fmt REQUIRED)
 
 include_directories(${CMAKE_SOURCE_DIR}/source/)
 
-add_library(psu_object_library OBJECT psu.cpp psu.hpp channel.hpp)
-add_library(ch_object_library OBJECT channel.cpp channel.hpp)
-add_library(psuobj STATIC psu.cpp psu.hpp)
 
-target_link_libraries(
-    ch_object_library
-    PRIVATE fmt::fmt
-    PUBLIC CAENHVWrapper::CAENHVWrapper
-)
-
-target_link_libraries(
-    psu_object_library
-    PRIVATE fmt::fmt ch_object_library
-    PUBLIC CAENHVWrapper::CAENHVWrapper
+# Earlier attempts to create this object attempted to create a 
+# channel object and a psu object, and then link them together
+# into a singular psuobj. This failed spectacularly, for no
+# obvious reason. This method is much simpler.
+add_library(
+    psuobj 
+    OBJECT 
+        psu.cpp psu.hpp channel.cpp channel.hpp
 )
 
 target_include_directories(
     psuobj
-    PRIVATE fmt::fmt psu_object_library ch_object_library
+    PUBLIC
+        CAENHVWrapper::CAENHVWrapper   
+    PRIVATE 
+        fmt::fmt
+)
+
+target_link_libraries(
+    psuobj
+    PUBLIC
+        CAENHVWrapper::CAENHVWrapper   
+    PRIVATE 
+        fmt::fmt
 )

@@ -82,47 +82,9 @@ namespace msu_smdt
     channel::channel()
     {}
 
-    /*
-    channel::channel(channel&& move) noexcept
-    {}
-    */
-
-    channel::channel(const channel& copy):
-        info                            { copy.info },
-        name                            { copy.name },
-        channel_number                  { copy.channel_number },
-        m_is_using_zero_current_adjust  { m_is_using_zero_current_adjust },
-        intrinsic_current               { intrinsic_current }
-    {}
-
-    /*
-    channel& channel::operator=(channel&& move) noexcept
-    {
-        if (&move != this)
-        {
-
-        }
-        return *this;
-    }
-    */
-
-    channel& channel::operator=(const channel& copy)
-    {
-        // Checking for self assignment.
-        if (this != &copy)
-        {
-            info                            = copy.info;
-            name                            = copy.name;
-            channel_number                  = copy.channel_number;
-            m_is_using_zero_current_adjust  = m_is_using_zero_current_adjust;
-            intrinsic_current               = intrinsic_current;
-        }
-
-        return *this;
-    }
-
     channel::channel(interchannel info, int number) 
     {
+        fmt::print("Constructor called!\n");
         this->info = info;
         this->channel_number = number;
 
@@ -188,6 +150,46 @@ namespace msu_smdt
         fmt::print("Have not implemented a way to obtain parasitic current\n");
     #endif // NDEBUG
     }
+
+    /*
+    channel::channel(channel&& move) noexcept
+    {}
+    */
+
+    channel::channel(const channel& copy):
+        info                            { copy.info },
+        name                            { copy.name },
+        channel_number                  { copy.channel_number },
+        m_is_using_zero_current_adjust  { m_is_using_zero_current_adjust },
+        intrinsic_current               { intrinsic_current }
+    {}
+
+    /*
+    channel& channel::operator=(channel&& move) noexcept
+    {
+        if (&move != this)
+        {
+
+        }
+        return *this;
+    }
+    */
+
+    channel& channel::operator=(const channel& copy)
+    {
+        // Checking for self assignment.
+        if (this != &copy)
+        {
+            info                            = copy.info;
+            name                            = copy.name;
+            channel_number                  = copy.channel_number;
+            m_is_using_zero_current_adjust  = m_is_using_zero_current_adjust;
+            intrinsic_current               = intrinsic_current;
+        }
+
+        return *this;
+    }
+
     
     channel::~channel()
     {

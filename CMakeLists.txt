@@ -12,9 +12,19 @@ set(CMAKE_CXX_EXTENSIONS        OFF)
 find_package(fmt REQUIRED)
 
 add_subdirectory(source/psu)
-
 add_executable(dccs source/main.cpp)
-target_include_directories(dccs PRIVATE source)
 
-target_link_libraries(dccs PRIVATE fmt::fmt)
-target_link_libraries(dccs PRIVATE psuobj)
+target_include_directories(
+    dccs 
+    PRIVATE 
+        source
+)
+
+target_link_libraries(
+    dccs 
+    PUBLIC 
+        CAENHVWrapper::CAENHVWrapper
+    PRIVATE
+        fmt::fmt
+        psuobj
+)

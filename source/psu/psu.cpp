@@ -237,10 +237,10 @@ namespace msu_smdt
 
         // From the channel constructor, these channels will 
         // default being off.
-        CH0 = channel(common_channel_info, 0);
-        CH1 = channel(common_channel_info, 1);
-        CH2 = channel(common_channel_info, 2);
-        CH3 = channel(common_channel_info, 3);
+        msu_smdt::channel CH0(common_channel_info, 0);
+        msu_smdt::channel CH1(common_channel_info, 1);
+        msu_smdt::channel CH2(common_channel_info, 2);
+        msu_smdt::channel CH3(common_channel_info, 3);
     }
 
     psu::~psu()

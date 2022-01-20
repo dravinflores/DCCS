@@ -47,11 +47,11 @@ namespace msu_smdt
     {
     public:
         channel();
+        channel(interchannel, int);
         channel(channel&&) noexcept;
         channel(const channel&);
         channel& operator=(channel&&) noexcept;
         channel& operator=(const channel&);
-        channel(interchannel, int);
         ~channel();
 
         void set_voltage(double);
