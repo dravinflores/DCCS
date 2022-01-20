@@ -39,6 +39,7 @@ int main(int argc, char** argv)
     try
     {
         msu_smdt::psu psuobj(fake_com_port_connection);
+        psuobj.start_test(0);
     }
     catch(const std::exception& e)
     {

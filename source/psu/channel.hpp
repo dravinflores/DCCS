@@ -43,6 +43,24 @@ namespace msu_smdt
         std::vector<unsigned short> channel_list;
     };
 
+    namespace status
+    {
+        constexpr uint_fast16_t ON      { 1 << 0 };
+        constexpr uint_fast16_t RUP     { 1 << 1 };
+        constexpr uint_fast16_t RDW     { 1 << 2 };
+        constexpr uint_fast16_t OVC     { 1 << 3 };
+        constexpr uint_fast16_t OVV     { 1 << 4 };
+        constexpr uint_fast16_t UNV     { 1 << 5 };
+        constexpr uint_fast16_t MAXV    { 1 << 6 };
+        constexpr uint_fast16_t TRIP    { 1 << 7 };
+        constexpr uint_fast16_t OVP     { 1 << 8 };
+        constexpr uint_fast16_t OVT     { 1 << 9 };
+        constexpr uint_fast16_t DIS     { 1 << 10 };
+        constexpr uint_fast16_t KILL    { 1 << 11 };
+        constexpr uint_fast16_t ILK     { 1 << 12 };
+        constexpr uint_fast16_t NOLOCAL { 1 << 13 };
+    }
+
     class channel
     {
     public:
@@ -76,6 +94,7 @@ namespace msu_smdt
         bool is_using_zero_current_adjust();
 
         void read_status();
+        uint_fast32_t get_status();
 
         void power_on();
         void power_off();
@@ -88,5 +107,6 @@ namespace msu_smdt
         int channel_number;
         bool m_is_using_zero_current_adjust;
         double intrinsic_current;
+        uint_fast32_t status;
     };
 }

@@ -149,6 +149,8 @@ namespace msu_smdt
     #ifndef NDEBUG
         fmt::print("Have not implemented a way to obtain parasitic current\n");
     #endif // NDEBUG
+
+        status = 0;
     }
 
     /*
@@ -160,8 +162,9 @@ namespace msu_smdt
         info                            { copy.info },
         name                            { copy.name },
         channel_number                  { copy.channel_number },
-        m_is_using_zero_current_adjust  { m_is_using_zero_current_adjust },
-        intrinsic_current               { intrinsic_current }
+        m_is_using_zero_current_adjust  { copy.m_is_using_zero_current_adjust },
+        intrinsic_current               { copy.intrinsic_current },
+        status                          { copy.status }
     {}
 
     /*
@@ -511,6 +514,24 @@ namespace msu_smdt
         constexpr uint_fast16_t KILL    { 1 << 11 };
         constexpr uint_fast16_t ILK     { 1 << 12 };
         constexpr uint_fast16_t NOLOCAL { 1 << 13 };
+
+        uint_fast32_t ch_status = 0;
+
+        CAENHVRESULT result = CAENHV_GetChParam(
+            this->info.handle,
+            this->info.slot,
+            "ChStatus",
+            this->channel_number,
+            this->info.channel_list.data(),
+            &ch_status
+        );
+
+        status = ch_status;
+    }
+
+    uint_fast32_t channel::get_status()
+    {
+        return status;
     }
 
     void channel::power_on()

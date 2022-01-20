@@ -256,9 +256,39 @@ namespace msu_smdt
         CAENHVRESULT result = CAENHV_DeinitSystem(this->handle);
     }
     
-    void psu::start_test(int)
+    void psu::start_test(int reserve)
     {
         fmt::print("Test starting.\n");
+
+        // For now, we'll just test the functionality of CH0.
+        fmt::print("Testing the connection to CH0\n");
+
+        if (CH0.get_polarity() == polarity::normal)
+        {
+            fmt::print("\tPolarity: +\n");
+        }
+        else
+        {
+            fmt::print("\tPolarity: -\n");
+        }
+        
+        fmt::print("\tCurrent: {}\n", CH0.get_current());
+
+        fmt::print("\tVoltage: {}\n", CH0.read_voltage());
+
+        fmt::print("\tChannel Status: {#B}\n", CH0.get_status());
+
+        fmt::print("Attempting to cycle power\n");
+
+        fmt::print("\tPowering on\n");
+        CH0.power_on();
+        fmt::print("\t\tStatus: {}\n", CH0.get_status() & status::ON);
+
+        fmt::print("\tPowering off\n");
+        CH0.power_off();
+        fmt::print("\t\tStatus: {}\n", !(CH0.get_status() & status::ON));
+
+        fmt::print("Finished checking connection\n\n");
     }
 
     void psu::print_internal_com_port_string()
