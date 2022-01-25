@@ -30,11 +30,7 @@ namespace msu_smdt
         number_of_channels  { -1 },
         serial_number       { -1 },
         slot                { -1 },
-        firmware_version    { "DEFAULT" },
-        CH0                 { channel() },
-        CH1                 { channel() },
-        CH2                 { channel() },
-        CH3                 { channel() }
+        firmware_version    { "DEFAULT" }
     {}
 
     psu::~psu()
@@ -127,6 +123,10 @@ namespace msu_smdt
 
         // If we've reached this point, then we've successfully
         // connected to the PSU.
+
+        // ------------------------------------------------------------------ //
+        // Found a better system. Use vectors and the data() member function  //
+        // ------------------------------------------------------------------ //
 
         // TODO: Need a better system. This is kinda clunky.
         unsigned short number_of_slots = -1;
@@ -248,56 +248,23 @@ namespace msu_smdt
         CAENHV_Free(firmware_release_minimum_list);
         CAENHV_Free(firmware_release_max_list);
 
-        // Alright, now we're assuming that we've connected 
-        // to the power supply.
-
-        // Brace initialization is awesome.
-        msu_smdt::interchannel common_channel_info {
-            .handle         { this->handle },
-            .slot           { (unsigned short) this->slot },
-            .channel_list   { 0, 1, 2, 3 }
-        };
-
-        // From the channel constructor, these channels will 
-        // default being off.
-        this->CH0.initialize(common_channel_info, 0);
-        this->CH1.initialize(common_channel_info, 1);
-        this->CH2.initialize(common_channel_info, 2);
-        this->CH3.initialize(common_channel_info, 3);
+        // We just want to make sure we initialize the channels here. We're
+        // going to assume all channels are initialized.
+        internal_manager.initialize_channels(
+            { 0, 1, 2, 3 },
+            this->handle,
+            this->slot
+        );
     }
 
     
     void psu::start_test(int reserve)
     {
-        fmt::print("Test starting.\n");
-
-        // For now, we'll just test the functionality of CH0.
+        fmt::print("\n\n----- Test Initiating -----\n");
         fmt::print("Testing the connection to CH0\n");
 
-        if (CH0.read_polarity() == polarity::normal)
-        {
-            fmt::print("\tPolarity: +\n");
-        }
-        else
-        {
-            fmt::print("\tPolarity: -\n");
-        }
-        
-        fmt::print("\tCurrent: {}\n", CH0.read_current());
-
-        fmt::print("\tVoltage: {}\n", CH0.read_voltage());
-
-        fmt::print("\tChannel Status: {#B}\n", CH0.read_status());
-
-        fmt::print("Attempting to cycle power\n");
-
-        fmt::print("\tPowering on\n");
-        CH0.power_on();
-        fmt::print("\t\tStatus: {}\n", CH0.read_status() & status::ON);
-
-        fmt::print("\tPowering off\n");
-        CH0.power_off();
-        fmt::print("\t\tStatus: {}\n", !(CH0.read_status() & status::ON));
+        auto current = internal_manager.read_channel_current(0);
+        fmt::print("\tCH0 Current: {}\n", current);
 
         fmt::print("Finished checking connection\n\n");
     }

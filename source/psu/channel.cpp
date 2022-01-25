@@ -78,217 +78,131 @@
 #include <psu/channel.hpp>
 
 namespace msu_smdt
-{ 
-    channel::channel()
+{
+    static constexpr int default_value { 256 };
+
+    channel_manager::channel_manager():
+        active_channels {
+            { false, 0, default_value, default_value, default_value },
+            { false, 1, default_value, default_value, default_value },
+            { false, 2, default_value, default_value, default_value },
+            { false, 3, default_value, default_value, default_value }
+        },
+        handle          { default_value },
+        slot            { default_value }
     {
     #ifndef NDEBUG
-        fmt::print("Default Constructor called!\n");
+        fmt::print("Constructor has been called on channel manager\n");
     #endif // NDEBUG
-
-        interchannel info {
-            .handle         { -1 },
-            .slot           { 512 },
-            .channel_list   { 512, 512, 512, 512 }
-        };
-
-        int channel_number = -1;
-
-        bool is_using_zero_current_adjust = false;
-        double intrinsic_current = -256.00;
     }
 
-    channel::~channel()
+    channel_manager::~channel_manager()
     {
     #ifndef NDEBUG
-        std::string name;
-
-        if (channel_number)
-        {
-            std::string name = fmt::format("CH{}", channel_number);
-        }
-        else
-        {
-            name = "Default";
-        }
-
-        fmt::print("Destructor has been called on {}!\n", name);
+        fmt::print("Destructor has been called on channel manager\n");
     #endif // NDEBUG
     }
 
 
-    channel::channel(const channel& copy):
-        info                            { copy.info },
-        channel_number                  { copy.channel_number },
-        is_using_zero_current_adjust    { copy.is_using_zero_current_adjust },
-        intrinsic_current               { copy.intrinsic_current }
-    {}
-
-    channel& channel::operator=(const channel& copy)
+    void channel_manager::initialize_channels(
+        std::vector<uint_fast16_t> channels_to_activate,
+        int handle,
+        uint_fast16_t slot
+    )
     {
-        // Checking for self assignment.
-        if (this != &copy)
+        // We expect that the user will pass in the particular
+        // channels to activate. For instance, if the user wants
+        // CH2 and CH3 active, then the passed in vector will be
+        // std::vector<uint_fast16_t> channels { 2, 3 };
+
+        // We want to ensure that we only activate the proper channels.
+        for (auto& channel_number : channels_to_activate)
         {
-            info                            = copy.info;
-            channel_number                  = copy.channel_number;
-            is_using_zero_current_adjust    = is_using_zero_current_adjust;
-            intrinsic_current               = intrinsic_current;
+            this->active_channels.at(channel_number).is_active = true;
         }
 
-        return *this;
-    }
+        this->handle = handle;
+        this->slot = slot;
 
-            
-    void channel::initialize(const interchannel& info, int channel)
-    {
-        this->info = info;
-        this->channel_number = channel;
-
-        // These values are the default. We should read this from a
-        // configuration file, such as a TOML file.
-        // TODO: Read-in using a TOML file.
-        std::map<std::string, double> default_parameter_values {
-            { "VSet",   3015.00 },
-            { "ISet",   2.00 },
-            { "MaxV",   4015.00 },
-            { "RUp",    500.00 },
-            { "RDwn",   500.00 },
-            { "Trip",   1000.00 },
-            { "PDwn",   0 },
-            { "Pw",     0 }
+        // This enumeration is useless outside of this function.
+        enum class Type
+        {
+            Float,
+            Int,
+            Unknown
         };
 
-        // We're going to iteratively set these default parameters. Maps
-        // are not allowed to have a different value type, so we will
-        // need to cast it here.
-        for (auto& [key, val] : default_parameter_values)
-        {
-            CAENHVRESULT result = -55;
+        // Now we want to initialize all channels to default values.
+        std::vector<std::tuple<std::string, double, Type>> default_parameters {
+            { "VSet",   3015.00,    Type::Float },
+            { "ISet",   2.00,       Type::Float },
+            { "MaxV",   4015.00,    Type::Float },
+            { "RUp",    500.00,     Type::Float },
+            { "RDwn",   500.00,     Type::Float },
+            { "Trip",   1000.00,    Type::Float },
+            { "PDwn",   0,          Type::Int },
+            { "Pw",     0,          Type::Int }
+        };
 
-            // For any of the booleans.
-            if ( (int) val == 0 ) 
+        for (auto& parameter_tuple : default_parameters)
+        {
+            auto key = std::get<0> (parameter_tuple);
+            auto val = std::get<1> (parameter_tuple);
+            auto type = std::get<2> (parameter_tuple);
+
+            if (type == Type::Float)
             {
-                int casted_val = (int) val;
-                result = CAENHV_SetChParam(
-                    this->info.handle,
-                    this->info.slot,
-                    key.c_str(),
-                    this->channel_number,
-                    this->info.channel_list.data(),
-                    &casted_val
-                );
+                set_channel_parameter(val, handle, key, channels_to_activate);
+            }
+            else if (type == Type::Int)
+            {
+                uint_fast16_t valp = (uint_fast16_t) val;
+                set_channel_parameter(valp, handle, key, channels_to_activate);
             }
             else 
-            {    
-                result = CAENHV_SetChParam(
-                    this->info.handle,
-                    this->info.slot,
-                    key.c_str(),
-                    this->channel_number,
-                    this->info.channel_list.data(),
-                    &val
-                );
-            }
-
-            if (result != CAENHV_OK)
             {
-                std::string error = fmt::format(
-                    "CAENHV_SetChParam() error: {}",
-                    CAENHV_GetError(this->info.handle) 
-                );
-
-                throw std::runtime_error(error.c_str());
+                throw std::runtime_error("Unable to convert!");
             }
         }
     }
 
 
-    void channel::set_operating_voltage(double voltage)
+    void channel_manager::set_global_operating_voltage(double voltage)
     {
         if ((voltage < 0) || (voltage > 5600))
         {
             throw std::runtime_error("Voltage out of range");
         }
 
-        CAENHVRESULT result = CAENHV_SetChParam(
-            this->info.handle,
-            this->info.slot,
-            "VSet",
-            this->channel_number,
-            this->info.channel_list.data(),
-            &voltage
-        );
-
-        if (result != CAENHV_OK)
-        {
-            std::string error = fmt::format(
-                "CAENHV_SetChParam() error: {}",
-                CAENHV_GetError(this->info.handle) 
-            );
-
-            throw std::runtime_error(error.c_str());
-        }
+        set_channel_parameter(voltage, handle, "VSet", {0, 1, 2, 3});
     }
 
-    void channel::set_current_limit(double current)
+    void channel_manager::set_global_current_limit(double current)
     {
         if ((current < 0.00) || (30.00))
         {
             throw std::runtime_error("Current is out of range");
         }
 
-        CAENHVRESULT result = CAENHV_GetChParam(
-            this->info.handle,
-            this->info.slot,
-            "ISet",
-            this->channel_number,
-            this->info.channel_list.data(),
-            &current
-        );
-
-        if (result != CAENHV_OK)
-        {
-            std::string error = fmt::format(
-                "CAENHV_SetChParam() error: {}",
-                CAENHV_GetError(this->info.handle) 
-            );
-
-            throw std::runtime_error(error.c_str());
-        }
+        set_channel_parameter(current, handle, "ISet", {0, 1, 2, 3});
     }
 
 
-    void channel::set_voltage_limit(double voltage)
+    void channel_manager::set_global_voltage_limit(double voltage)
     {}
 
-    void channel::set_overcurrent_time_limit(double time_limit)
+    void channel_manager::set_global_overcurrent_time_limit(double time_limit)
     {
         if ((time_limit < 0.00) || (time_limit > 1000.00))
         {
             throw std::runtime_error("Time limit out of range");
         }
 
-        CAENHVRESULT result = CAENHV_SetChParam(
-            this->info.handle,
-            this->info.slot,
-            "Trip",
-            this->channel_number,
-            this->info.channel_list.data(),
-            &time_limit
-        );
-
-        if (result != CAENHV_OK)
-        {
-            std::string error = fmt::format(
-                "CAENHV_SetChParam() error: {}",
-                CAENHV_GetError(this->info.handle) 
-            );
-
-            throw std::runtime_error(error.c_str());
-        }
+        set_channel_parameter(time_limit, handle, "Trip", {0, 1, 2, 3});
     }
 
 
-    void channel::set_voltage_increase_rate(double rate)
+    void channel_manager::set_global_voltage_increase_rate(double rate)
     {
         // For safety reasons, we will limit to 1000 V/s.
         if ((rate < 0.00) || (rate > 1000.00))
@@ -296,276 +210,122 @@ namespace msu_smdt
             throw std::runtime_error("Voltage Increase Rate out of range");
         }
 
-        CAENHVRESULT result = CAENHV_SetChParam(
-            this->info.handle,
-            this->info.slot,
-            "RUp",
-            this->channel_number,
-            this->info.channel_list.data(),
-            &rate
-        );
-
-        if (result != CAENHV_OK)
-        {
-            std::string error = fmt::format(
-                "CAENHV_SetChParam() error: {}",
-                CAENHV_GetError(this->info.handle) 
-            );
-
-            throw std::runtime_error(error.c_str());
-        }
+        set_channel_parameter(rate, handle, "RUp", {0, 1, 2, 3});
     }
 
-    void channel::set_voltage_decrease_rate(double rate)
+    void channel_manager::set_global_voltage_decrease_rate(double rate)
     {
         // For safety reasons, we will limit to 1000 V/s.
         if ((rate < 0.00) || (rate > 1000.00))
         {
-            throw std::runtime_error("Voltage Decrease Rate out of range");
+            throw std::runtime_error("Voltage Increase Rate out of range");
         }
 
-        CAENHVRESULT result = CAENHV_SetChParam(
-            this->info.handle,
-            this->info.slot,
-            "RDwn",
-            this->channel_number,
-            this->info.channel_list.data(),
-            &rate
-        );
-
-        if (result != CAENHV_OK)
-        {
-            std::string error = fmt::format(
-                "CAENHV_SetChParam() error: {}",
-                CAENHV_GetError(this->info.handle) 
-            );
-
-            throw std::runtime_error(error.c_str());
-        }
+        set_channel_parameter(rate, handle, "RDwn", {0, 1, 2, 3});
     }
 
 
-    double channel::read_current()
+    double channel_manager::read_channel_current(int channel)
     {
-        // When we read this range in, it will either be:
-        //      0: High Range (+/- 1 nA)
-        //      1: Low Range (+/- 0.05 nA) 
-        unsigned int imonrange_state;
+    #ifndef NDEBUG
+        fmt::print("\n\n----- Debugging Information -----\n");
+        fmt::print("\tJust throwing away other channel readings.\n\n");
+    #endif // NDEBUG
 
-        // We need to check the zoom level for the current.
-        CAENHVRESULT result = CAENHV_GetChParam(
-            this->info.handle,
-            this->info.slot,
+        if ( !is_an_active_channel(channel) )
+        {
+            std::runtime_error("Select an active channel");
+        }
+
+        auto active_channel_list = get_active_channel_numbers();
+
+        // When we read this range in, it will either be:
+        //      - 0: High Range (+/- 1 nA)
+        //      - 1: Low Range (+/- 0.05 nA) 
+        auto imonrange_state_vector = get_channel_parameter(
+            0,
+            handle,
             "ImonRange",
-            this->channel_number,
-            this->info.channel_list.data(),
-            &imonrange_state
+            active_channel_list
         );
 
-        if (result != CAENHV_OK)
-        {
-            std::string error = fmt::format(
-                "CAENHV_SetChParam() error: {}",
-                CAENHV_GetError(this->info.handle) 
-            );
+        auto imonrange_state = imonrange_state_vector[0];
 
-            throw std::runtime_error(error.c_str());
+        if (imonrange_state == default_value)
+        {
+            std::runtime_error("Could not read IMonRange");
         }
 
         std::string parameter = "";
-        if (imonrange_state)
-        {
-            parameter = "IMonL";
-        }
-        else
-        {
-            parameter = "IMonH";
-        }
+        
+        // Needed so that we can get the current.
+        imonrange_state ? parameter = "ImonL" : parameter = "ImonH";
 
-        double current = -255.00;
-        CAENHVRESULT current_reading_result = CAENHV_GetChParam(
-            this->info.handle,
-            this->info.slot,
+        auto current_vector = get_channel_parameter(
+            0.00,
+            handle,
             parameter.c_str(),
-            this->channel_number,
-            this->info.channel_list.data(),
-            &current
+            active_channel_list
         );
 
-        if (current_reading_result != CAENHV_OK)
-        {
-            std::string error = fmt::format(
-                "CAENHV_SetChParam() error: {}",
-                CAENHV_GetError(this->info.handle) 
-            );
-
-            throw std::runtime_error(error.c_str());
-        }
-
-        // Here we would adjust for the parasitic current.
-        if (this->is_using_zero_current_adjust)
-        {
-            current -= this->intrinsic_current;
-        }
-
-        if (current < 0.00)
-        {
-            throw std::runtime_error("Current out of range");
-        }
-
+        double current = (double) current_vector.at(channel);
         return current;
     }
 
-    double channel::read_voltage()
+    double channel_manager::read_channel_voltage(int channel)
     {
-        double voltage = -255.00;
-
-        CAENHVRESULT result = CAENHV_GetChParam(
-            this->info.handle,
-            this->info.slot,
-            "VMon",
-            this->channel_number,
-            this->info.channel_list.data(),
-            &voltage
-        );
-
-        if (result != CAENHV_OK)
-        {
-            std::string error = fmt::format(
-                "CAENHV_SetChParam() error: {}",
-                CAENHV_GetError(this->info.handle) 
-            );
-
-            throw std::runtime_error(error.c_str());
-        }
-
-        // There is a parameter called MaxV.
-        // TODO: Consider using MaxV value.
-        if (voltage < 0.00)
-        {
-            throw std::runtime_error("Unable to read voltage");
-        }
-
-        return voltage;
+        return -256.00;
     }
 
-    polarity channel::read_polarity()
+    uint_fast32_t channel_manager::read_channel_polarity(int channel)
     {
-        unsigned int retrieved_polarity;
-
-        CAENHVRESULT result = CAENHV_SetChParam(
-            info.handle,
-            info.slot,
-            "Polarity",
-            channel_number,
-            info.channel_list.data(),
-            &retrieved_polarity
-        );
-
-        if (result != CAENHV_OK)
-        {
-            std::string error = fmt::format(
-                "CAENHV_SetChParam() error: {}",
-                CAENHV_GetError(this->info.handle) 
-            );
-
-            throw std::runtime_error(error.c_str());
-        }
-
-        polarity return_polarity;
-
-        if (retrieved_polarity)
-        {
-            return_polarity = polarity::reverse;
-        }
-        else
-        {
-            return_polarity = polarity::normal;
-        }
-
-        return return_polarity;
+        return 256;
     }
 
-    uint_fast32_t channel::read_status()
+    uint_fast32_t channel_manager::read_channel_status(int channel)
     {
-        uint_fast32_t ch_status = 0;
-
-        CAENHVRESULT result = CAENHV_GetChParam(
-            this->info.handle,
-            this->info.slot,
-            "ChStatus",
-            this->channel_number,
-            this->info.channel_list.data(),
-            &ch_status
-        );
-
-        if (result != CAENHV_OK)
-        {
-            std::string error = fmt::format(
-                "CAENHV_SetChParam() error: {}",
-                CAENHV_GetError(this->info.handle) 
-            );
-
-            throw std::runtime_error(error.c_str());
-        }
-
-        return ch_status;
+        return 256;
     }
 
 
-    void channel::power_on()
+    void channel_manager::interpret_status()
+    {}
+
+
+    void channel_manager::enable_channel(int channel)
+    {}
+
+    void channel_manager::disable_channel(int channel)
+    {}
+
+    void channel_manager::kill_channel(int channel)
+    {}
+
+    bool channel_manager::is_an_active_channel(int channel)
     {
-        unsigned int power = 1;
-        CAENHVRESULT result = CAENHV_SetChParam(
-            this->info.handle,
-            this->info.slot,
-            "Pw",
-            this->channel_number,
-            this->info.channel_list.data(),
-            &power
-        );
+        auto active_channel_list = get_active_channel_numbers();
 
-        if (result != CAENHV_OK)
-        {
-            std::string error = fmt::format(
-                "CAENHV_SetChParam() error: {}",
-                CAENHV_GetError(this->info.handle) 
-            );
+        bool is_active = std::find(
+            active_channel_list.begin(),
+            active_channel_list.end(),
+            channel
+        ) != active_channel_list.end();
 
-            throw std::runtime_error(error.c_str());
-        }
+        return is_active;
     }
 
-    void channel::power_off()
+    std::vector<uint_fast16_t> channel_manager::get_active_channel_numbers()
     {
-        unsigned int power = 0;
-        CAENHVRESULT result = CAENHV_SetChParam(
-            this->info.handle,
-            this->info.slot,
-            "Pw",
-            this->channel_number,
-            this->info.channel_list.data(),
-            &power
-        );
-
-        if (result != CAENHV_OK)
+        std::vector<uint_fast16_t> active_channel_list;
+        for (auto& channel : active_channels)
         {
-            std::string error = fmt::format(
-                "CAENHV_SetChParam() error: {}",
-                CAENHV_GetError(this->info.handle) 
-            );
-
-            throw std::runtime_error(error.c_str());
+            if (channel.is_active)
+            {
+                active_channel_list.push_back(channel.number);
+            }
         }
-    }
 
-    void channel::force_power_off()
-    {
-    #ifndef NDEBUG
-        fmt::print("\n\nKILLING THE CHANNEL\n\n");
-    #endif // NDEBUG
-
-        power_off();
+        return active_channel_list;
     }
 
 }

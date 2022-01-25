@@ -77,9 +77,6 @@ namespace msu_smdt
         std::string firmware_version;
         
         // Now we will have the channels here.
-        channel CH0;
-        channel CH1;
-        channel CH2;
-        channel CH3;
+        channel_manager internal_manager;
     };
 }

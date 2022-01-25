@@ -26,80 +26,61 @@
 
 #include <fmt/core.h>
 
+#include <psu/hv_channel_interface.hpp>
+
 #include <CAENHVWrapper.h>
 
 namespace msu_smdt
 {
-    enum class polarity
+    // This is more of an administrative abstraction, meant to 
+    // help manage each of the channels more independently.
+    struct channel
     {
-        normal,
-        reverse
+        bool is_active;
+        int number;
+        double last_read_voltage;
+        double last_read_current;
+        double intrinsic_current;
     };
 
-    struct interchannel
-    {
-        int handle;
-        unsigned short slot;
-        std::vector<unsigned short> channel_list;
-    };
-
-    namespace status
-    {
-        constexpr uint_fast16_t ON      { 1 << 0 };
-        constexpr uint_fast16_t RUP     { 1 << 1 };
-        constexpr uint_fast16_t RDW     { 1 << 2 };
-        constexpr uint_fast16_t OVC     { 1 << 3 };
-        constexpr uint_fast16_t OVV     { 1 << 4 };
-        constexpr uint_fast16_t UNV     { 1 << 5 };
-        constexpr uint_fast16_t MAXV    { 1 << 6 };
-        constexpr uint_fast16_t TRIP    { 1 << 7 };
-        constexpr uint_fast16_t OVP     { 1 << 8 };
-        constexpr uint_fast16_t OVT     { 1 << 9 };
-        constexpr uint_fast16_t DIS     { 1 << 10 };
-        constexpr uint_fast16_t KILL    { 1 << 11 };
-        constexpr uint_fast16_t ILK     { 1 << 12 };
-        constexpr uint_fast16_t NOLOCAL { 1 << 13 };
-    }
-
-    class channel
+    class channel_manager
     {
     public:
-        channel();
-        ~channel();
+        channel_manager();
+        ~channel_manager();
 
-        channel(const channel&);
-        channel& operator=(const channel&);
+        void initialize_channels(
+            std::vector<uint_fast16_t>, 
+            int, 
+            uint_fast16_t
+        );
 
-        channel(channel&&) noexcept = delete;
-        channel& operator=(channel&&) noexcept = delete;
-        
-        void initialize(const interchannel&, int);
+        void set_global_operating_voltage(double);
+        void set_global_current_limit(double);
 
-        void set_operating_voltage(double);
-        void set_current_limit(double);
+        void set_global_voltage_limit(double);
+        void set_global_overcurrent_time_limit(double);
 
-        void set_voltage_limit(double);
-        void set_overcurrent_time_limit(double);
+        void set_global_voltage_increase_rate(double);
+        void set_global_voltage_decrease_rate(double);
 
-        void set_voltage_increase_rate(double);
-        void set_voltage_decrease_rate(double);
-
-        double read_current();
-        double read_voltage();
-        polarity read_polarity();
-        uint_fast32_t read_status();
+        double read_channel_current(int);
+        double read_channel_voltage(int);
+        uint_fast32_t read_channel_polarity(int);
+        uint_fast32_t read_channel_status(int);
 
         void interpret_status();
 
-        void power_on();
-        void power_off();
-        void force_power_off();
+        void enable_channel(int);
+        void disable_channel(int);
+        void kill_channel(int);
+
+        bool is_an_active_channel(int);
+        std::vector<uint_fast16_t> get_active_channel_numbers();
 
     private:
-        interchannel    info;
-        int             channel_number;
-
-        bool            is_using_zero_current_adjust;
-        double          intrinsic_current;
+        std::vector<channel> active_channels;
+        int handle;
+        unsigned short slot;
     };
 }
