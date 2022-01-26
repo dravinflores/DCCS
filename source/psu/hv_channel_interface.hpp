@@ -41,6 +41,20 @@ void set_channel_parameters(
     std::vector<unsigned short> channels_to_set
 )
 {
+#ifndef NDEBUG
+    fmt::print("\nset_channel_parameters called\n");
+    fmt::print("\nArguments passed in: \n");
+    fmt::print("\tval = {}\n", val);
+    fmt::print("\thandle = {}\n", handle);
+    fmt::print("\tparameter_name = {}\n", parameter_name);
+    
+    fmt::print("\tchannels_to_set = [ ");
+    for (auto& elem : channels_to_set)
+    {
+        fmt::print("{}, ", elem);
+    }
+    fmt::print("]\n");
+#endif // NDEBUG
     unsigned short n = (unsigned short) channels_to_set.size();
     std::unique_ptr<unsigned short[]> channel_list { new unsigned short[n] };
 
@@ -65,6 +79,10 @@ void set_channel_parameters(
             CAENHV_GetError(handle) 
         );
 
+    #ifndef NDEBUG
+        fmt::print("\n\tUnable to set channel parameter. Throwing exception\n");
+        fmt::print("\t{}\n\n", error);
+    #endif // NDEBUG
         throw std::runtime_error(error.c_str());
     }
 }
@@ -80,6 +98,21 @@ std::vector<T> get_channel_parameters(
     std::vector<unsigned short> channels_to_get
 )
 {
+#ifndef NDEBUG
+    fmt::print("\n\nget_channel_parameters called\n");
+    fmt::print("Arguments passed in:\n");
+    fmt::print("\ttype_hint = {}\n", type_hint);
+    fmt::print("\thandle = {}\n", handle);
+    fmt::print("\tparameter_name = {}\n", parameter_name);
+
+    fmt::print("\tchannels_to_get = [ ");
+    for (auto& elem : channels_to_get)
+    {
+        fmt::print("{}, ", elem);
+    }
+    fmt::print("]\n");
+#endif // NDEBUG
+
     static constexpr int default_value { 256 };
 
     unsigned short n = channels_to_get.size();
@@ -112,6 +145,10 @@ std::vector<T> get_channel_parameters(
             CAENHV_GetError(handle) 
         );
 
+    #ifndef NDEBUG
+        fmt::print("\n\tUnable to get channel parameter. Throwing exception\n");
+        fmt::print("\t{}\n\n", error);
+    #endif // NDEBUG
         throw std::runtime_error(error.c_str());
     }
 
@@ -122,6 +159,15 @@ std::vector<T> get_channel_parameters(
         T recorded_val = (T) parameter_value_list[i];
         return_vec.push_back(recorded_val);
     }
+
+#ifndef NDEBUG
+    fmt::print("Received vector of parameters. Printing: \n");
+
+    for (int i = 0; i < n; ++i)
+    {
+        fmt::print("\t{}: {}\n", i, return_vec.at(i));
+    }
+#endif // NDEBUG
 
     return return_vec;
 }

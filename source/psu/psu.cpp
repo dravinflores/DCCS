@@ -81,7 +81,7 @@ namespace msu_smdt
         );
 
     #ifndef NDEBUG
-        fmt::print("We want to see if we can link to the ");
+        fmt::print("\nWe want to see if we can link to the ");
         fmt::print("CAENHVWrapper library.\n");
     #endif // NDEBUG
 

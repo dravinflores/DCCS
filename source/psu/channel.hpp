@@ -65,6 +65,18 @@ namespace msu_smdt
         void set_global_voltage_increase_rate(double);
         void set_global_voltage_decrease_rate(double);
 
+        // Have to implement
+
+        void set_single_channel_current_limit(unsigned short, double);
+        void set_global_operating_voltage(unsigned short, double);
+
+        void set_single_channel_voltage_limit(unsigned short, double);
+        void set_single_channel_overcurrent_time_limit(unsigned short, double);
+
+        void set_single_channel_voltage_increase_rate(unsigned short, double);
+        void set_single_channel_voltage_decrease_rate(unsigned short, double);
+
+
         double read_channel_current(unsigned short);
         double read_channel_voltage(unsigned short);
         uint_fast32_t read_channel_status(unsigned short);
