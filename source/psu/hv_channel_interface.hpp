@@ -20,7 +20,6 @@
 
 #pragma once
 
-#include <span>
 #include <memory>
 #include <vector>
 #include <string>
@@ -30,21 +29,32 @@
 
 #include <CAENHVWrapper.h>
 
+// The proper use case for this function is as follows: create a vector
+// of the particular channels whose properties are to be set. For instance,
+// to set ONLY a parameter on CH3, the vector would be:
+//      std::vector<unsigned short> channels_to_set { 3 };
 template <typename T>
 void set_channel_parameters(
     T val,
     int handle,
-    unsigned short slot,
     std::string_view parameter_name,
-    std::span<unsigned short> channels_to_set
+    std::vector<unsigned short> channels_to_set
 )
 {
+    unsigned short n = (unsigned short) channels_to_set.size();
+    std::unique_ptr<unsigned short[]> channel_list { new unsigned short[n] };
+
+    for (int i = 0; i < n; ++i)
+    {
+        channel_list[i] = channels_to_set.at(i);
+    }
+
     CAENHVRESULT result = CAENHV_SetChParam(
         handle,
-        slot,
+        (unsigned short) 0,
         parameter_name.data(),
-        (unsigned short) channels_to_set.size(),
-        (unsigned short*) channels_to_set.data(),
+        n,
+        channel_list.get(),
         &val
     );
 
@@ -60,49 +70,39 @@ void set_channel_parameters(
 }
 
 
+// Similar use case to the above. Only, a vector will be returned which
+// corresponds element-by-element to the channels being passed in.
 template <typename T>
 std::vector<T> get_channel_parameters(
     T type_hint,
     int handle,
-    unsigned short slot,
     std::string_view parameter_name,
-    std::span<unsigned short> channels_to_get
+    std::vector<unsigned short> channels_to_get
 )
 {
     static constexpr int default_value { 256 };
 
-    // We need to figure out how the library handles channels.
-    // As in, can we pass in a list for just CH2 and CH3, and
-    // hope that we only get a list of two vectors back?
+    unsigned short n = channels_to_get.size();
+    std::unique_ptr<unsigned short[]> channel_list { new unsigned short[n] };
 
-    // Idea 1: If we only specify CH2 and CH3 in our list of 
-    // channels, then only the first two elements of our array
-    // will be populated.
-    T returned_parameter_values[4] {
-        (T) default_value,
-        (T) default_value,
-        (T) default_value,
-        (T) default_value
-    };
-
-    // Idea 2: If we only specify CH2 and CH3, then we only need
-    // to allocate two spaces for the return values.]
-    std::unique_ptr<T[]> allocated_returned_parameter_values {
-        new T[channels_to_get.size()]
-    };
-
-    for (int i = 0; i < channels_to_get.size(); ++i)
+    for (int i = 0; i < n; ++i)
     {
-        allocated_returned_parameter_values[i] = (T) default_value;
+        channel_list[i] = channels_to_get.at(i);
+    }
+
+    std::unique_ptr<T[]> parameter_value_list { new T[n] };
+    for (int i = 0; i < n; ++i)
+    {
+        parameter_value_list[i] = (T) default_value;
     }
 
     CAENHVRESULT result = CAENHV_GetChParam(
         handle,
-        slot,
+        (unsigned short) 0,
         parameter_name.data(),
-        (unsigned short) channels_to_get.size(),
-        (unsigned short*) channels_to_get.data(),
-        returned_parameter_values
+        n,
+        channel_list.get(),
+        parameter_value_list.get()
     );
 
     if (result != CAENHV_OK)
@@ -116,13 +116,11 @@ std::vector<T> get_channel_parameters(
     }
 
     std::vector<T> return_vec;
-
-    for (int i = 0; i < channels_to_get.size(); ++i)
+    
+    for (int i = 0; i < n; ++i)
     {
-        T val = returned_parameter_values[i];
-        fmt::print("At {}: \n", i);
-        fmt::print("\t{}: {}\n\n", parameter_name, val);
-        return_vec.push_back(val);
+        T recorded_val = (T) parameter_value_list[i];
+        return_vec.push_back(recorded_val);
     }
 
     return return_vec;

@@ -82,8 +82,8 @@ namespace msu_smdt
     static constexpr int default_value { 512 };
 
     channel_manager::channel_manager():
-        handle { -1 },
-        slot { 0 },
+        handle  { -1 },
+        slot    { 0 },
         active_channels {
             // For CH0
             { 0, false, default_value, default_value, default_value },
@@ -99,14 +99,14 @@ namespace msu_smdt
         }
     {
     #ifndef NDEBUG
-        fmt::print("Constructor has been called on channel manager\n");
+        fmt::print("\nConstructor has been called on channel manager\n\n");
     #endif // NDEBUG
     }
 
     channel_manager::~channel_manager()
     {
     #ifndef NDEBUG
-        fmt::print("Destructor has been called on channel manager\n");
+        fmt::print("\nDestructor has been called on channel manager\n\n");
     #endif // NDEBUG
     }
 
@@ -117,6 +117,23 @@ namespace msu_smdt
         std::vector<unsigned short> channels_to_activate
     )
     {
+    #ifndef NDEBUG
+        fmt::print("\nchannel_manager::initialize_channels\n");
+        fmt::print("Arguments passed in: \n");
+        fmt::print("\tint handle = {}\n", handle);
+        fmt::print("\tunsigned short slot = {}\n", slot);
+        fmt::print("\tchannels_to_activate = [ ");
+
+        int n = channels_to_activate.size();
+
+        for (int i = 0; i < n - 1; ++i)
+        {
+            fmt::print("{}, ", channels_to_activate.at(i));
+        }
+        fmt::print("{} ", channels_to_activate.at(n));
+        fmt::print("]\n");
+    #endif // NDEBUG
+
         this->handle = handle;
         this->slot = slot;
 
@@ -128,6 +145,11 @@ namespace msu_smdt
         // We want to ensure that we only activate the proper channels.
         for (auto& channel_number : channels_to_activate)
         {
+            if ((channel_number < 0) || (channel_number > 3))
+            {
+                throw std::runtime_error("Wrong channels to initialize");
+            }
+
             this->active_channels.at(channel_number).is_active = true;
         }
 
@@ -135,14 +157,14 @@ namespace msu_smdt
         fmt::print("\n----- Attempting to Initialize All Channels -----\n");
     #endif // NDEBUG
 
-        // set_global_current_limit(2);
-        // set_global_operating_voltage(3015);
+        set_global_current_limit(2);
+        set_global_operating_voltage(3015);
 
-        // set_global_voltage_limit(4015);
-        // set_global_overcurrent_time_limit(1000);
+        set_global_voltage_limit(4015);
+        set_global_overcurrent_time_limit(1000);
 
-        // set_global_voltage_increase_rate(1000);
-        // set_global_voltage_decrease_rate(1000);
+        set_global_voltage_increase_rate(1000);
+        set_global_voltage_decrease_rate(1000);
         
     #ifndef NDEBUG
         fmt::print("\n----- Initialized All Channels -----\n\n");
@@ -153,7 +175,10 @@ namespace msu_smdt
     void channel_manager::set_global_current_limit(double current)
     {
     #ifndef NDEBUG
-        fmt::print("\tSetting Global Current Limit");
+        fmt::print("\nchannel_manager::set_global_current_limit\n");
+        fmt::print("Arguments passed in: \n");
+        fmt::print("\tdouble current = {}\n\n", current);
+        fmt::print("Setting Global Current Limit");
     #endif // NDEBUG
 
         if ((current < 0.00) || (current > 30.00))
@@ -161,87 +186,353 @@ namespace msu_smdt
             throw std::runtime_error("Current is out of range");
         }
 
-        std::vector<unsigned short> passed_in_list { 0, 1, 2, 3 };
-        set_channel_parameters(
-            current,
-            handle,
-            slot,
-            "ISet",
-            passed_in_list
-        );
+        std::vector<unsigned short> channels_to_set { 0, 1, 2, 3 };
+
+        try
+        {
+            set_channel_parameters(
+                current,
+                handle,
+                "ISet",
+                channels_to_set
+            );
+        }
+        catch (std::runtime_error& error)
+        {
+        #ifndef NDEBUG
+            fmt::print("Global Current Limit Set Was Unsuccessful\n\n");
+        #endif // NDEBUG
+            std::string error_str = fmt::format(
+                "Caught set_channel_parameters error in "
+                "set_global_current_limit. Propagating out. "
+                "{}",
+                error.what()
+            );
+            throw std::runtime_error(error_str.c_str());
+        }
 
     #ifndef NDEBUG
-        fmt::print("{>30}\n", "Done");
+        fmt::print("Global Current Limit Set\n\n");
     #endif // NDEBUG
     }
 
     void channel_manager::set_global_operating_voltage(double voltage)
-    {}
+    {
+    #ifndef NDEBUG
+        fmt::print("\nchannel_manager::set_global_operating_voltage\n");
+        fmt::print("Arguments passed in: \n");
+        fmt::print("\tdouble voltage = {}\n\n", voltage);
+        fmt::print("Setting Global Operating Voltage");
+    #endif // NDEBUG
+
+        if ((voltage < 0.00) || (voltage > 4015.00))
+        {
+            throw std::runtime_error("Voltage is out of range");
+        }
+
+        std::vector<unsigned short> channels_to_set { 0, 1, 2, 3 };
+
+        try 
+        {    
+            set_channel_parameters(
+                voltage,
+                handle,
+                "VSet",
+                channels_to_set
+            );
+        }
+        catch (std::runtime_error& error)
+        {
+        #ifndef NDEBUG
+            fmt::print("Global Operating Voltage Set Was Unsuccessful\n\n");
+        #endif // NDEBUG
+        
+            std::string error_str = fmt::format(
+                "Caught set_channel_parameters error in "
+                "set_global_operating_voltage. Propagating out. "
+                "{}",
+                error.what()
+            );
+            throw std::runtime_error(error_str.c_str());
+        }
+
+    #ifndef NDEBUG
+        fmt::print("Global Operating Voltage Set\n\n");
+    #endif // NDEBUG
+    }
 
 
     void channel_manager::set_global_voltage_limit(double voltage)
-    {}
+    {
+    #ifndef NDEBUG
+        fmt::print("\nchannel_manager::set_global_voltage_limit\n");
+        fmt::print("Arguments passed in: \n");
+        fmt::print("\tdouble voltage = {}\n\n", voltage);
+        fmt::print("Setting Global Voltage Limit");
+    #endif // NDEBUG
+
+        if ((voltage < 0.00) || (voltage > 4015.00))
+        {
+            throw std::runtime_error("Voltage is out of range");
+        }
+
+        std::vector<unsigned short> channels_to_set { 0, 1, 2, 3 };
+
+        try
+        {    
+            set_channel_parameters(
+                voltage,
+                handle,
+                "MaxV",
+                channels_to_set
+            );
+        }
+        catch (std::runtime_error& error)
+        {
+        #ifndef NDEBUG
+            fmt::print("Global Voltage Limit Set Was Unsuccessful\n\n");
+        #endif // NDEBUG
+
+            std::string error_str = fmt::format(
+                "Caught set_channel_parameters error in "
+                "set_global_voltage_limit. Propagating out. "
+                "{}",
+                error.what()
+            );
+            throw std::runtime_error(error_str.c_str());
+        }
+
+    #ifndef NDEBUG
+        fmt::print("Global Voltage Limit Set\n\n");
+    #endif // NDEBUG
+    }
 
     void channel_manager::set_global_overcurrent_time_limit(double time_limit)
-    {}
+    {
+    #ifndef NDEBUG
+        fmt::print("\nchannel_manager::set_global_overcurrent_time_limit\n");
+        fmt::print("Arguments passed in: \n");
+        fmt::print("\tdouble time_limit = {}\n\n", time_limit);
+        fmt::print("Setting Global Overcurrent Time Limit");
+    #endif // NDEBUG
+
+        if ((time_limit < 0.00) || (time_limit > 1100.00))
+        {
+            throw std::runtime_error("Overcurrent time is out of range");
+        }
+
+        std::vector<unsigned short> channels_to_set { 0, 1, 2, 3 };
+
+        try
+        {    
+            set_channel_parameters(
+                time_limit,
+                handle,
+                "Trip",
+                channels_to_set
+            );
+        }
+        catch (std::runtime_error& error)
+        {
+        #ifndef NDEBUG
+            fmt::print("Global Over Current Limit Set Was Unsuccessful\n\n");
+        #endif // NDEBUG
+        
+            std::string error_str = fmt::format(
+                "Caught set_channel_parameters error in "
+                "set_global_overcurrent_time_limit. Propagating out. "
+                "{}",
+                error.what()
+            );
+            throw std::runtime_error(error_str.c_str());
+        }
+
+    #ifndef NDEBUG
+        fmt::print("Global Over Current Limit Set\n\n");
+    #endif // NDEBUG
+    }
 
 
     void channel_manager::set_global_voltage_increase_rate(double rate)
-    {}
+    {
+    #ifndef NDEBUG
+        fmt::print("\nchannel_manager::set_global_voltage_increase_rate\n");
+        fmt::print("Arguments passed in: \n");
+        fmt::print("\tdouble rate = {}\n\n", rate);
+        fmt::print("Setting Global Voltage Increase Rate");
+    #endif // NDEBUG
+
+        if ((rate < 0.00) || (rate > 1000.00))
+        {
+            throw std::runtime_error("Voltage increase rate is out of range");
+        }
+
+        std::vector<unsigned short> channels_to_set { 0, 1, 2, 3 };
+
+        try
+        {
+            set_channel_parameters(
+                rate,
+                handle,
+                "RUp",
+                channels_to_set
+            );
+        }
+        catch (std::runtime_error& error)
+        {
+        #ifndef NDEBUG
+            fmt::print("Global Voltage Increase Rate Set Was Unsuccessful\n\n");
+        #endif // NDEBUG
+
+            std::string error_str = fmt::format(
+                "Caught set_channel_parameters error in "
+                "set_global_voltage_increase_rate. Propagating out. "
+                "{}",
+                error.what()
+            );
+            throw std::runtime_error(error_str.c_str());
+        }
+
+    #ifndef NDEBUG
+        fmt::print("Global Voltage Increase Rate Set\n\n");
+    #endif // NDEBUG
+    }
 
     void channel_manager::set_global_voltage_decrease_rate(double rate)
-    {}
+    {
+    #ifndef NDEBUG
+        fmt::print("\nchannel_manager::set_global_voltage_decrease_rate\n");
+        fmt::print("Arguments passed in: \n");
+        fmt::print("\tdouble rate = {}\n\n", rate);
+        fmt::print("Setting Global Voltage Decrease Rate");
+    #endif // NDEBUG
+
+        if ((rate < 0.00) || (rate > 1000.00))
+        {
+            throw std::runtime_error("Voltage decrease rate is out of range");
+        }
+
+        std::vector<unsigned short> channels_to_set { 0, 1, 2, 3 };
+
+        try
+        {
+            set_channel_parameters(
+                rate,
+                handle,
+                "RDwn",
+                channels_to_set
+            );
+        }
+        catch (std::runtime_error& error)
+        {
+        #ifndef NDEBUG
+            fmt::print("Global Voltage Decrease Rate Set Was Unsuccessful\n\n");
+        #endif // NDEBUG
+        
+            std::string error_str = fmt::format(
+                "Caught set_channel_parameters error in "
+                "set_global_voltage_decrease_rate. Propagating out. "
+                "{}",
+                error.what()
+            );
+            throw std::runtime_error(error_str.c_str());
+        }
+
+    #ifndef NDEBUG
+        fmt::print("Global Voltage Decrease Rate Set\n\n");
+    #endif // NDEBUG
+    }
 
 
     double channel_manager::read_channel_current(unsigned short channel)
     {
     #ifndef NDEBUG
-        fmt::print("\n\n----- Debugging Information -----\n");
-        fmt::print("\tJust throwing away other channel readings.\n\n");
+        fmt::print("\nchannel_manager::read_channel_current");
+        fmt::print("Arguments passed in: \n");
+        fmt::print("\tunsigned short channel = {}\n", channel);
     #endif // NDEBUG
 
+        fmt::print("Currently ignoring active channels.\n");
+        /*
         if ( !is_an_active_channel(channel) )
         {
             std::runtime_error("Select an active channel");
         }
+        */
 
-        auto active_channel_list = get_active_channel_numbers();
+        // auto active_channel_list = get_active_channel_numbers();
+        std::vector<unsigned short> active_channel_list = { channel };
         unsigned long type_hint = default_value;
 
         // When we read this range in, it will either be:
         //      - 0: High Range (+/- 1 nA)
         //      - 1: Low Range (+/- 0.05 nA) 
 
-        std::vector<unsigned short> passed_in_list { 0, 1, 2, 3 };
-        auto imonrange_state_vector = get_channel_parameters(
-            type_hint,
-            handle,
-            slot,
-            "ImonRange",
-            passed_in_list
-        );
+        std::vector<unsigned long> imonrange_state_vector;
+        try
+        {    
+            imonrange_state_vector = get_channel_parameters(
+                type_hint,
+                handle,
+                "Imonrange",
+                active_channel_list
+            );
+        }
+        catch (std::runtime_error& error)
+        {
+        #ifndef NDEBUG
+            fmt::print("Unable to read Imonrange\n\n");
+        #endif // NDEBUG
+        
+            std::string error_str = fmt::format(
+                "Caught set_channel_parameters error in "
+                "read_channel_current. Propagating out. "
+                "{}",
+                error.what()
+            );
+            throw std::runtime_error(error_str.c_str());
+        }
 
         auto imonrange_state = imonrange_state_vector[0];
 
         if (imonrange_state == default_value)
         {
-            std::runtime_error("Could not read IMonRange");
+            std::runtime_error("Could not read ImonRange");
         }
 
         std::string parameter = "";
         
         // Needed so that we can get the current.
-        imonrange_state ? parameter = "ImonL" : parameter = "ImonH";
+        imonrange_state ? parameter = "IMonL" : parameter = "IMonH";
 
-        auto current_vector = get_channel_parameters(
-            0.00,
-            handle,
-            slot,
-            parameter.c_str(),
-            passed_in_list
-        );
+        std::vector<double> current_vector;
+        double secondary_type_hint = 0.00;
 
-        double current = (double) current_vector.at(channel);
+        try
+        {
+            current_vector = get_channel_parameters(
+                secondary_type_hint,
+                handle,
+                parameter.c_str(),
+                active_channel_list
+            );
+        }
+        catch (std::runtime_error& error)
+        {
+        #ifndef NDEBUG
+            fmt::print("Unable to read current zoom\n\n");
+        #endif // NDEBUG
+        
+            std::string error_str = fmt::format(
+                "Caught set_channel_parameters error in "
+                "read_channel_current. Propagating out. "
+                "{}",
+                error.what()
+            );
+            throw std::runtime_error(error_str.c_str());
+        }
+
+        double current = (double) current_vector[0];
         return current;
     }
 
@@ -271,9 +562,27 @@ namespace msu_smdt
         fmt::print("Enabling channel\n");
     #endif // NDEBUG
 
-        std::vector<unsigned short> passed_in_list { 0 };
+        std::vector<unsigned short> channels_to_set { 0 };
         unsigned long power_on = 1;
-        set_channel_parameters(power_on, handle, slot, "Pw", passed_in_list);
+
+        try
+        {
+            set_channel_parameters(power_on, handle, "Pw", channels_to_set);
+        }
+        catch(std::runtime_error& error)
+        {
+        #ifndef NDEBUG
+            fmt::print("Unable to enable channel\n\n");
+        #endif // NDEBUG
+        
+            std::string error_str = fmt::format(
+                "Caught set_channel_parameters error in "
+                "enable_channel. Propagating out. "
+                "{}",
+                error.what()
+            );
+            throw std::runtime_error(error_str.c_str());
+        }
     }
 
     void channel_manager::disable_channel(unsigned short channel)
@@ -282,9 +591,27 @@ namespace msu_smdt
         fmt::print("Enabling channel\n");
     #endif // NDEBUG
 
-        std::vector<unsigned short> passed_in_list { 0 };
+        std::vector<unsigned short> channels_to_set { 0 };
         unsigned long power_off = 0;
-        set_channel_parameters(power_off, handle, slot, "Pw", passed_in_list);
+        
+        try
+        {
+            set_channel_parameters(power_off, handle, "Pw", channels_to_set);
+        }
+        catch(std::runtime_error& error)
+        {
+        #ifndef NDEBUG
+            fmt::print("Unable to disable channel\n\n");
+        #endif // NDEBUG
+        
+            std::string error_str = fmt::format(
+                "Caught set_channel_parameters error in "
+                "disable_channel. Propagating out. "
+                "{}",
+                error.what()
+            );
+            throw std::runtime_error(error_str.c_str());
+        }
     }
 
     void channel_manager::kill_channel(unsigned short channel)
