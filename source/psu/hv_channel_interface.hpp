@@ -5,7 +5,8 @@
  * 
  *  Purpose:        This file provides a simple interface to the CAEN HV
  *                  Wrapper Library's getter and setter functions for the
- *                  channel parameters; in particular CAENHV_GetChParam and *                  CAENHV_SetChParam.
+ *                  channel parameters; in particular CAENHV_GetChParam and 
+ *                  CAENHV_SetChParam.
  * 
  *                  These functions operate on a multi-channel basis, which is
  *                  why a std::vector is returned.
