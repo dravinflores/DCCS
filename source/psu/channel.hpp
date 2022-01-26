@@ -23,6 +23,7 @@
 #include <cstdint>
 #include <utility>
 #include <stdexcept>
+#include <memory>
 
 #include <fmt/core.h>
 
@@ -36,8 +37,8 @@ namespace msu_smdt
     // help manage each of the channels more independently.
     struct channel
     {
-        bool is_active;
         int number;
+        bool is_active;
         double last_read_voltage;
         double last_read_current;
         double intrinsic_current;
@@ -50,13 +51,13 @@ namespace msu_smdt
         ~channel_manager();
 
         void initialize_channels(
-            std::vector<uint_fast16_t>, 
             int, 
-            uint_fast16_t
+            unsigned short, 
+            std::vector<unsigned short>
         );
 
-        void set_global_operating_voltage(double);
         void set_global_current_limit(double);
+        void set_global_operating_voltage(double);
 
         void set_global_voltage_limit(double);
         void set_global_overcurrent_time_limit(double);
@@ -64,23 +65,34 @@ namespace msu_smdt
         void set_global_voltage_increase_rate(double);
         void set_global_voltage_decrease_rate(double);
 
-        double read_channel_current(int);
-        double read_channel_voltage(int);
-        uint_fast32_t read_channel_polarity(int);
-        uint_fast32_t read_channel_status(int);
+        double read_channel_current(unsigned short);
+        double read_channel_voltage(unsigned short);
+        uint_fast32_t read_channel_status(unsigned short);
+        uint_fast32_t read_channel_polarity(unsigned short);
 
         void interpret_status();
 
-        void enable_channel(int);
-        void disable_channel(int);
-        void kill_channel(int);
+        void enable_channel(unsigned short);
+        void disable_channel(unsigned short);
+        void kill_channel(unsigned short);
 
-        bool is_an_active_channel(int);
-        std::vector<uint_fast16_t> get_active_channel_numbers();
+        bool is_an_active_channel(unsigned short);
+        std::vector<unsigned short> get_active_channel_numbers();
+
+        // To implement later
+        
+        std::vector<double> read_multiple_currents(unsigned short);
+        std::vector<double> read_multiple_voltages(unsigned short);
+        std::vector<uint_fast32_t> read_multiple_statuses(unsigned short);
+        std::vector<uint_fast32_t> read_multiple_polarities(unsigned short);
+
+        void enable_multple_channels(unsigned short);
+        void disable_multiple_channels(unsigned short);
+        void kill_multiple_channel(unsigned short);
 
     private:
-        std::vector<channel> active_channels;
         int handle;
         unsigned short slot;
+        std::vector<channel> active_channels;
     };
 }

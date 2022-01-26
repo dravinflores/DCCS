@@ -79,17 +79,24 @@
 
 namespace msu_smdt
 {
-    static constexpr int default_value { 256 };
+    static constexpr int default_value { 512 };
 
     channel_manager::channel_manager():
+        handle { -1 },
+        slot { 0 },
         active_channels {
-            { false, 0, default_value, default_value, default_value },
-            { false, 1, default_value, default_value, default_value },
-            { false, 2, default_value, default_value, default_value },
-            { false, 3, default_value, default_value, default_value }
-        },
-        handle          { default_value },
-        slot            { default_value }
+            // For CH0
+            { 0, false, default_value, default_value, default_value },
+
+            // For CH1
+            { 1, false, default_value, default_value, default_value },
+
+            // For CH2
+            { 2, false, default_value, default_value, default_value },
+
+            // For CH3
+            { 3, false, default_value, default_value, default_value },
+        }
     {
     #ifndef NDEBUG
         fmt::print("Constructor has been called on channel manager\n");
@@ -105,15 +112,18 @@ namespace msu_smdt
 
 
     void channel_manager::initialize_channels(
-        std::vector<uint_fast16_t> channels_to_activate,
         int handle,
-        uint_fast16_t slot
+        unsigned short slot,
+        std::vector<unsigned short> channels_to_activate
     )
     {
+        this->handle = handle;
+        this->slot = slot;
+
         // We expect that the user will pass in the particular
         // channels to activate. For instance, if the user wants
         // CH2 and CH3 active, then the passed in vector will be
-        // std::vector<uint_fast16_t> channels { 2, 3 };
+        // std::vector<unsigned short> channels { 2, 3 };
 
         // We want to ensure that we only activate the proper channels.
         for (auto& channel_number : channels_to_activate)
@@ -121,111 +131,69 @@ namespace msu_smdt
             this->active_channels.at(channel_number).is_active = true;
         }
 
-        this->handle = handle;
-        this->slot = slot;
+    #ifndef NDEBUG
+        fmt::print("\n----- Attempting to Initialize All Channels -----\n");
+    #endif // NDEBUG
 
-        // This enumeration is useless outside of this function.
-        enum class Type
-        {
-            Float,
-            Int,
-            Unknown
-        };
+        // set_global_current_limit(2);
+        // set_global_operating_voltage(3015);
 
-        // Now we want to initialize all channels to default values.
-        std::vector<std::tuple<std::string, double, Type>> default_parameters {
-            { "VSet",   3015.00,    Type::Float },
-            { "ISet",   2.00,       Type::Float },
-            { "MaxV",   4015.00,    Type::Float },
-            { "RUp",    500.00,     Type::Float },
-            { "RDwn",   500.00,     Type::Float },
-            { "Trip",   1000.00,    Type::Float },
-            { "PDwn",   0,          Type::Int },
-            { "Pw",     0,          Type::Int }
-        };
+        // set_global_voltage_limit(4015);
+        // set_global_overcurrent_time_limit(1000);
 
-        for (auto& parameter_tuple : default_parameters)
-        {
-            auto key = std::get<0> (parameter_tuple);
-            auto val = std::get<1> (parameter_tuple);
-            auto type = std::get<2> (parameter_tuple);
-
-            if (type == Type::Float)
-            {
-                set_channel_parameter(val, handle, key, channels_to_activate);
-            }
-            else if (type == Type::Int)
-            {
-                uint_fast16_t valp = (uint_fast16_t) val;
-                set_channel_parameter(valp, handle, key, channels_to_activate);
-            }
-            else 
-            {
-                throw std::runtime_error("Unable to convert!");
-            }
-        }
+        // set_global_voltage_increase_rate(1000);
+        // set_global_voltage_decrease_rate(1000);
+        
+    #ifndef NDEBUG
+        fmt::print("\n----- Initialized All Channels -----\n\n");
+    #endif NDEBUG
     }
 
-
-    void channel_manager::set_global_operating_voltage(double voltage)
-    {
-        if ((voltage < 0) || (voltage > 5600))
-        {
-            throw std::runtime_error("Voltage out of range");
-        }
-
-        set_channel_parameter(voltage, handle, "VSet", {0, 1, 2, 3});
-    }
 
     void channel_manager::set_global_current_limit(double current)
     {
-        if ((current < 0.00) || (30.00))
+    #ifndef NDEBUG
+        fmt::print("\tSetting Global Current Limit");
+    #endif // NDEBUG
+
+        if ((current < 0.00) || (current > 30.00))
         {
             throw std::runtime_error("Current is out of range");
         }
 
-        set_channel_parameter(current, handle, "ISet", {0, 1, 2, 3});
+        std::vector<unsigned short> passed_in_list { 0, 1, 2, 3 };
+        set_channel_parameters(
+            current,
+            handle,
+            slot,
+            "ISet",
+            passed_in_list
+        );
+
+    #ifndef NDEBUG
+        fmt::print("{>30}\n", "Done");
+    #endif // NDEBUG
     }
+
+    void channel_manager::set_global_operating_voltage(double voltage)
+    {}
 
 
     void channel_manager::set_global_voltage_limit(double voltage)
     {}
 
     void channel_manager::set_global_overcurrent_time_limit(double time_limit)
-    {
-        if ((time_limit < 0.00) || (time_limit > 1000.00))
-        {
-            throw std::runtime_error("Time limit out of range");
-        }
-
-        set_channel_parameter(time_limit, handle, "Trip", {0, 1, 2, 3});
-    }
+    {}
 
 
     void channel_manager::set_global_voltage_increase_rate(double rate)
-    {
-        // For safety reasons, we will limit to 1000 V/s.
-        if ((rate < 0.00) || (rate > 1000.00))
-        {
-            throw std::runtime_error("Voltage Increase Rate out of range");
-        }
-
-        set_channel_parameter(rate, handle, "RUp", {0, 1, 2, 3});
-    }
+    {}
 
     void channel_manager::set_global_voltage_decrease_rate(double rate)
-    {
-        // For safety reasons, we will limit to 1000 V/s.
-        if ((rate < 0.00) || (rate > 1000.00))
-        {
-            throw std::runtime_error("Voltage Increase Rate out of range");
-        }
-
-        set_channel_parameter(rate, handle, "RDwn", {0, 1, 2, 3});
-    }
+    {}
 
 
-    double channel_manager::read_channel_current(int channel)
+    double channel_manager::read_channel_current(unsigned short channel)
     {
     #ifndef NDEBUG
         fmt::print("\n\n----- Debugging Information -----\n");
@@ -238,15 +206,19 @@ namespace msu_smdt
         }
 
         auto active_channel_list = get_active_channel_numbers();
+        unsigned long type_hint = default_value;
 
         // When we read this range in, it will either be:
         //      - 0: High Range (+/- 1 nA)
         //      - 1: Low Range (+/- 0.05 nA) 
-        auto imonrange_state_vector = get_channel_parameter(
-            0,
+
+        std::vector<unsigned short> passed_in_list { 0, 1, 2, 3 };
+        auto imonrange_state_vector = get_channel_parameters(
+            type_hint,
             handle,
+            slot,
             "ImonRange",
-            active_channel_list
+            passed_in_list
         );
 
         auto imonrange_state = imonrange_state_vector[0];
@@ -261,30 +233,31 @@ namespace msu_smdt
         // Needed so that we can get the current.
         imonrange_state ? parameter = "ImonL" : parameter = "ImonH";
 
-        auto current_vector = get_channel_parameter(
+        auto current_vector = get_channel_parameters(
             0.00,
             handle,
+            slot,
             parameter.c_str(),
-            active_channel_list
+            passed_in_list
         );
 
         double current = (double) current_vector.at(channel);
         return current;
     }
 
-    double channel_manager::read_channel_voltage(int channel)
+    double channel_manager::read_channel_voltage(unsigned short channel)
     {
-        return -256.00;
+        return default_value;
     }
 
-    uint_fast32_t channel_manager::read_channel_polarity(int channel)
+    uint_fast32_t channel_manager::read_channel_status(unsigned short channel)
     {
-        return 256;
+        return (uint_fast32_t) default_value;
     }
 
-    uint_fast32_t channel_manager::read_channel_status(int channel)
+    uint_fast32_t channel_manager::read_channel_polarity(unsigned short channel)
     {
-        return 256;
+        return (uint_fast32_t) default_value;
     }
 
 
@@ -292,16 +265,33 @@ namespace msu_smdt
     {}
 
 
-    void channel_manager::enable_channel(int channel)
+    void channel_manager::enable_channel(unsigned short channel)
+    {
+    #ifndef NDEBUG
+        fmt::print("Enabling channel\n");
+    #endif // NDEBUG
+
+        std::vector<unsigned short> passed_in_list { 0 };
+        unsigned long power_on = 1;
+        set_channel_parameters(power_on, handle, slot, "Pw", passed_in_list);
+    }
+
+    void channel_manager::disable_channel(unsigned short channel)
+    {
+    #ifndef NDEBUG
+        fmt::print("Enabling channel\n");
+    #endif // NDEBUG
+
+        std::vector<unsigned short> passed_in_list { 0 };
+        unsigned long power_off = 0;
+        set_channel_parameters(power_off, handle, slot, "Pw", passed_in_list);
+    }
+
+    void channel_manager::kill_channel(unsigned short channel)
     {}
 
-    void channel_manager::disable_channel(int channel)
-    {}
 
-    void channel_manager::kill_channel(int channel)
-    {}
-
-    bool channel_manager::is_an_active_channel(int channel)
+    bool channel_manager::is_an_active_channel(unsigned short channel)
     {
         auto active_channel_list = get_active_channel_numbers();
 
@@ -314,9 +304,9 @@ namespace msu_smdt
         return is_active;
     }
 
-    std::vector<uint_fast16_t> channel_manager::get_active_channel_numbers()
+    std::vector<unsigned short> channel_manager::get_active_channel_numbers()
     {
-        std::vector<uint_fast16_t> active_channel_list;
+        std::vector<unsigned short> active_channel_list;
         for (auto& channel : active_channels)
         {
             if (channel.is_active)

@@ -251,9 +251,9 @@ namespace msu_smdt
         // We just want to make sure we initialize the channels here. We're
         // going to assume all channels are initialized.
         internal_manager.initialize_channels(
-            { 0, 1, 2, 3 },
             this->handle,
-            this->slot
+            this->slot,
+            { 0, 1, 2, 3 }
         );
     }
 
@@ -265,6 +265,10 @@ namespace msu_smdt
 
         auto current = internal_manager.read_channel_current(0);
         fmt::print("\tCH0 Current: {}\n", current);
+
+        fmt::print("Testing ability to enable and disable channel\n");
+        internal_manager.enable_channel(0);
+        internal_manager.disable_channel(0);
 
         fmt::print("Finished checking connection\n\n");
     }
