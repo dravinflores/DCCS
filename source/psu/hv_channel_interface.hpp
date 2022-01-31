@@ -21,7 +21,6 @@
 #pragma once
 
 #include <memory>
-#include <vector>
 #include <string>
 #include <string_view>
 
@@ -29,48 +28,44 @@
 
 #include <CAENHVWrapper.h>
 
-// The proper use case for this function is as follows: create a vector
-// of the particular channels whose properties are to be set. For instance,
-// to set ONLY a parameter on CH3, the vector would be:
-//      std::vector<unsigned short> channels_to_set { 3 };
+
+// We are having serious problems trying to interface with the power supply.
+// In order to try to appease this, we will restrict the setting and getting
+// of channel parameters to a single channel.
+
 template <typename T>
-void set_channel_parameters(
+void set_channel_parameter(
     T val,
     int handle,
-    std::string_view parameter_name,
-    std::vector<unsigned short> channels_to_set
+    std::string_view parameter,
+    unsigned short channel_number
 )
 {
 #ifndef NDEBUG
-    fmt::print("\nset_channel_parameters called\n");
-    fmt::print("\nArguments passed in: \n");
-    fmt::print("\tval = {}\n", val);
-    fmt::print("\thandle = {}\n", handle);
-    fmt::print("\tparameter_name = {}\n", parameter_name);
-    
-    fmt::print("\tchannels_to_set = [ ");
-    for (auto& elem : channels_to_set)
-    {
-        fmt::print("{}, ", elem);
-    }
-    fmt::print("]\n");
+    fmt::print("Function set_channel_parameter called.\n");
+    fmt::print("Arguments passed in:\n");
+    fmt::print("\tArgument 1: val = {}\n", val);
+    fmt::print("\tArgument 2: handle = {}\n", handle);
+    fmt::print("\tArgument 3: parameter = {}\n", parameter);
+    fmt::print("\tArgument 4: channel_number = {}\n", channel_number);
 #endif // NDEBUG
-    unsigned short n = (unsigned short) channels_to_set.size();
-    std::unique_ptr<unsigned short[]> channel_list { new unsigned short[n] };
 
-    for (int i = 0; i < n; ++i)
-    {
-        channel_list[i] = channels_to_set.at(i);
-    }
+    unsigned short slot = 0;
+    const char* parameter_name_casted = (const char*) parameter.data();
+    unsigned short number_of_channels = 1;
+    T* address_of_parameter = &val;
+
+    // Does this work, or am I going to have to do a memory allocation?
+    unsigned short channel_list[1] = { channel_number };
 
     CAENHVRESULT result = CAENHV_SetChParam(
         handle,
-        (unsigned short) 0,
-        parameter_name.data(),
-        n,
-        channel_list.get(),
-        &val
-    );
+        slot,
+        parameter_name_casted,
+        number_of_channels,
+        channel_list,
+        (void*) address_of_parameter
+	);
 
     if (result != CAENHV_OK)
     {
@@ -80,94 +75,70 @@ void set_channel_parameters(
         );
 
     #ifndef NDEBUG
-        fmt::print("\n\tUnable to set channel parameter. Throwing exception\n");
-        fmt::print("\t{}\n\n", error);
+        fmt::print("Exception Caught! Printing then throwing.\n");
+        fmt::print("\t{}\n", error);
     #endif // NDEBUG
         throw std::runtime_error(error.c_str());
     }
+    else
+    {
+    #ifndef NDEBUG
+        fmt::print("\n");
+    #endif // NDEBUG
+    }
 }
 
-
-// Similar use case to the above. Only, a vector will be returned which
-// corresponds element-by-element to the channels being passed in.
 template <typename T>
-std::vector<T> get_channel_parameters(
-    T type_hint,
+T get_channel_parameter(
     int handle,
-    std::string_view parameter_name,
-    std::vector<unsigned short> channels_to_get
+    std::string_view parameter,
+    unsigned short channel_number
 )
 {
 #ifndef NDEBUG
-    fmt::print("\n\nget_channel_parameters called\n");
+    fmt::print("Function get_channel_parameter called.");
     fmt::print("Arguments passed in:\n");
-    fmt::print("\ttype_hint = {}\n", type_hint);
-    fmt::print("\thandle = {}\n", handle);
-    fmt::print("\tparameter_name = {}\n", parameter_name);
-
-    fmt::print("\tchannels_to_get = [ ");
-    for (auto& elem : channels_to_get)
-    {
-        fmt::print("{}, ", elem);
-    }
-    fmt::print("]\n");
+    fmt::print("\tArgument 1: handle = {}\n", handle);
+    fmt::print("\tArgument 2: parameter = {}\n", parameter);
+    fmt::print("\tArgument 3: channel_number = {}\n", channel_number);
 #endif // NDEBUG
 
-    static constexpr int default_value { 256 };
+    unsigned short slot = 0;
+    const char* parameter_name_casted = (const char*) parameter.data();
+    unsigned short number_of_channels = 1;
+    unsigned short channel_list[1] = { channel_number };
 
-    unsigned short n = channels_to_get.size();
-    std::unique_ptr<unsigned short[]> channel_list { new unsigned short[n] };
-
-    for (int i = 0; i < n; ++i)
-    {
-        channel_list[i] = channels_to_get.at(i);
-    }
-
-    std::unique_ptr<T[]> parameter_value_list { new T[n] };
-    for (int i = 0; i < n; ++i)
-    {
-        parameter_value_list[i] = (T) default_value;
-    }
+    // Let's see if we can avoid the dynamic memory allocation.
+    T received_value = (T) 256;
 
     CAENHVRESULT result = CAENHV_GetChParam(
         handle,
-        (unsigned short) 0,
-        parameter_name.data(),
-        n,
-        channel_list.get(),
-        parameter_value_list.get()
-    );
+        slot,
+        parameter_name_casted,
+        number_of_channels,
+        channel_list,
+        (void*) &received_value
+	);
 
     if (result != CAENHV_OK)
     {
         std::string error = fmt::format(
-            "CAENHV_GetChParam() error: {}",
+            "CAENHV_SetChParam() error: {}",
             CAENHV_GetError(handle) 
         );
 
     #ifndef NDEBUG
-        fmt::print("\n\tUnable to get channel parameter. Throwing exception\n");
-        fmt::print("\t{}\n\n", error);
+        fmt::print("Exception Caught! Printing then throwing.\n");
+        fmt::print("\t{}\n", error);
     #endif // NDEBUG
         throw std::runtime_error(error.c_str());
     }
-
-    std::vector<T> return_vec;
-    
-    for (int i = 0; i < n; ++i)
+    else
     {
-        T recorded_val = (T) parameter_value_list[i];
-        return_vec.push_back(recorded_val);
+    #ifndef NDEBUG
+        fmt::print("\n");
+    #endif // NDEBUG
     }
 
-#ifndef NDEBUG
-    fmt::print("Received vector of parameters. Printing: \n");
-
-    for (int i = 0; i < n; ++i)
-    {
-        fmt::print("\t{}: {}\n", i, return_vec.at(i));
-    }
-#endif // NDEBUG
-
-    return return_vec;
+    return received_value;
 }

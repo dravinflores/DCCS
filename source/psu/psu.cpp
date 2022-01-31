@@ -60,12 +60,7 @@ namespace msu_smdt
         // assert(!is_empty)
 
     #ifndef NDEBUG
-        fmt::print(
-            "Here in the file {} on line {}, is_empty = {}.\n", 
-            __FILE__, 
-            __LINE__, 
-            is_empty
-        );
+        fmt::print("COM Port Info Passed in: {}. is_empty = {}\n", is_empty);
     #endif // NDEBUG
 
         // The CAEN HV Wrapper library expects the following format:
@@ -248,12 +243,15 @@ namespace msu_smdt
         CAENHV_Free(firmware_release_minimum_list);
         CAENHV_Free(firmware_release_max_list);
 
+    #ifndef NDEBUG
+        fmt::print("Connection has been established.\n\n");
+    #endif // NDEBUG
+
         // We just want to make sure we initialize the channels here. We're
         // going to assume all channels are initialized.
         internal_manager.initialize_channels(
             this->handle,
-            this->slot,
-            { 0, 1, 2, 3 }
+            { 0 }
         );
     }
 
@@ -261,13 +259,16 @@ namespace msu_smdt
     void psu::start_test(int reserve)
     {
         fmt::print("\n\n----- Test Initiating -----\n");
-        fmt::print("Testing the connection to CH0\n");
+        fmt::print("Testing the connection to CH0\n\n");
 
-        auto current = internal_manager.read_channel_current(0);
-        fmt::print("\tCH0 Current: {}\n", current);
-
-        fmt::print("Testing ability to enable and disable channel\n");
         internal_manager.enable_channel(0);
+        std::this_thread::sleep_for(std::chrono::seconds(5));
+
+        auto voltage = internal_manager.read_voltage(0);
+        auto current = internal_manager.read_low_precision_current(0);
+        fmt::print("Voltage is: {}\n", voltage);
+        fmt::print("Current is: {}\n", current);
+
         internal_manager.disable_channel(0);
 
         fmt::print("Finished checking connection\n\n");
