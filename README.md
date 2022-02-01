@@ -167,7 +167,8 @@ removed before execution. To build, issue the following commands:
 > cmake -B build -S ./
     -DCMAKE_BUILD_TYPE=Debug 
     -DCMAKE_TOOLCHAIN_FILE=C:\development\vcpkg\scripts\buildsystems\vcpkg.cmake
-    -D VCPKG_TARGET_TRIPLET=x64-windows-static 
+    -DVCPKG_TARGET_TRIPLET=x64-windows-static 
+    -DCMAKE_WINDOWS_EXPORT_ALL_SYMBOLS=TRUE
 > cmake --build build
 > cd build/Debug
 > ./dccs.exe

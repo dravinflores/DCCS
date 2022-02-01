@@ -18,7 +18,7 @@ include_directories(${CMAKE_SOURCE_DIR}/source/)
 add_library(
     psuobj 
     OBJECT 
-        psu.cpp psu.hpp channel.cpp channel.hpp
+        psu.cpp psu.hpp channel.cpp channel.hpp hv_channel_interface.hpp
 )
 
 target_include_directories(

@@ -23,70 +23,62 @@
 #include <cstdint>
 #include <utility>
 #include <stdexcept>
+#include <memory>
 
 #include <fmt/core.h>
+
+#include <psu/hv_channel_interface.hpp>
 
 #include <CAENHVWrapper.h>
 
 namespace msu_smdt
 {
-    enum class polarity
+    // This is more of an administrative abstraction, meant to 
+    // help manage each of the channels more independently.
+    struct channel
     {
-        normal,
-        reverse
+        int number;
+        bool is_active;
+        double last_read_voltage;
+        double last_read_current;
+        double intrinsic_current;
     };
 
-    struct interchannel
+    enum class recover_mode
     {
-        int handle;
-        unsigned short slot;
-        std::vector<unsigned short> channel_list;
+        kill,
+        ramp
     };
 
-    class channel
+    class channel_manager
     {
     public:
-        channel();
-        channel(interchannel, int);
-        channel(channel&&) noexcept;
-        channel(const channel&);
-        channel& operator=(channel&&) noexcept;
-        channel& operator=(const channel&);
-        ~channel();
+        channel_manager();
+        ~channel_manager();
 
-        void set_voltage(double);
-        double read_voltage();
+        void initialize_channels(int, std::vector<unsigned short>);
 
-        void set_current(double);
+        void enable_channel(unsigned short);
+        void disable_channel(unsigned short);
 
-        // If the current is between in the range of 0-2 uA, then
-        // the current range will switch to low, and the readings
-        // will be (+/-) 0.5 nA.
-        double get_current();
+        void set_programmed_voltage(unsigned short, float);
+        void set_programmed_current_limit(unsigned short, float);
+        void set_max_voltage_limit(unsigned short, float);
+        void set_ramp_up_voltage_rate(unsigned short, float);
+        void set_ramp_down_voltage_rate(unsigned short, float);
+        void set_overcurrent_time_allowed(unsigned short, float);
+        void set_method_of_powering_down(unsigned short, recover_mode);
 
-        polarity get_polarity();
-
-        void set_voltage_limit(double);
-        void set_overcurrent_time_limit(double);
-
-        void set_voltage_increase_rate(double);
-        void set_voltage_decrease_rate(double);
-
-        void adjust_for_zero_current();
-        bool is_using_zero_current_adjust();
-
-        void read_status();
-
-        void power_on();
-        void power_off();
-
-        void kill();
+        float read_voltage(unsigned short);
+        bool is_in_high_precision_mode(unsigned short);
+        float read_low_precision_current(unsigned short);
+        float read_high_precision_current(unsigned short);
+        bool is_normal_polarity(unsigned short);
+        unsigned long read_channel_status(unsigned short);
+        
 
     private:
-        interchannel info;
-        std::string name;
-        int channel_number;
-        bool m_is_using_zero_current_adjust;
-        double intrinsic_current;
+        int handle;
+        std::vector<channel> active_channels;
     };
 }

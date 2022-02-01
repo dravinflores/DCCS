@@ -24,10 +24,29 @@
 
 namespace msu_smdt
 {
-    // The purpose of this constructor is to initialize the PSUOBJ. Then
-    // this constructor will attempt to connect to the power supply, followed
-    // by setting all the internal variables to reflect this connection.
-    psu::psu(const com_port& com_port_info)
+    psu::psu():
+        com_port_str        { "DEFAULT" },
+        handle              { -1 },
+        number_of_channels  { -1 },
+        serial_number       { -1 },
+        slot                { -1 },
+        firmware_version    { "DEFAULT" }
+    {}
+
+    psu::~psu()
+    {
+    #ifndef NDEBUG
+        print_internal_com_port_string();
+    #endif // NDEBUG
+
+        // Because this destructor is guaranteed to no-throw, we're going to
+        // simply ignore this result. Even if we cannot deinitialize from the
+        // system.
+        // TODO: Find a better way to deinitialize. Maybe some hard reset?
+        CAENHVRESULT result = CAENHV_DeinitSystem(this->handle);
+    }
+
+    void psu::initialize(const com_port& com_port_info)
     {
         // We need to check that the proper com_port struct was passed in.
         bool is_empty = com_port_info.port.empty()              \
@@ -41,12 +60,7 @@ namespace msu_smdt
         // assert(!is_empty)
 
     #ifndef NDEBUG
-        fmt::print(
-            "Here in the file {} on line {}, is_empty = {}.\n", 
-            __FILE__, 
-            __LINE__, 
-            is_empty
-        );
+        fmt::print("COM Port Info Passed in: {}. is_empty = {}\n", is_empty);
     #endif // NDEBUG
 
         // The CAEN HV Wrapper library expects the following format:
@@ -62,7 +76,7 @@ namespace msu_smdt
         );
 
     #ifndef NDEBUG
-        fmt::print("We want to see if we can link to the ");
+        fmt::print("\nWe want to see if we can link to the ");
         fmt::print("CAENHVWrapper library.\n");
     #endif // NDEBUG
 
@@ -104,6 +118,10 @@ namespace msu_smdt
 
         // If we've reached this point, then we've successfully
         // connected to the PSU.
+
+        // ------------------------------------------------------------------ //
+        // Found a better system. Use vectors and the data() member function  //
+        // ------------------------------------------------------------------ //
 
         // TODO: Need a better system. This is kinda clunky.
         unsigned short number_of_slots = -1;
@@ -201,7 +219,7 @@ namespace msu_smdt
         fmt::print("\tChannels available: {}\n", number_of_channels_list[0]);
         fmt::print("\tSerial: {}\n", serial_number_list[0]);
         fmt::print(
-            "\tFirmware: {}.{}", 
+            "\tFirmware: {}.{}\n", 
             firmware_release_max_list[0], 
             firmware_release_minimum_list[0]
         );
@@ -225,40 +243,35 @@ namespace msu_smdt
         CAENHV_Free(firmware_release_minimum_list);
         CAENHV_Free(firmware_release_max_list);
 
-        // Alright, now we're assuming that we've connected 
-        // to the power supply.
-
-        // Brace initialization is awesome.
-        msu_smdt::interchannel common_channel_info {
-            .handle         { this->handle },
-            .slot           { (unsigned short) this->slot },
-            .channel_list   { 0, 1, 2, 3 }
-        };
-
-        // From the channel constructor, these channels will 
-        // default being off.
-        msu_smdt::channel CH0(common_channel_info, 0);
-        msu_smdt::channel CH1(common_channel_info, 1);
-        msu_smdt::channel CH2(common_channel_info, 2);
-        msu_smdt::channel CH3(common_channel_info, 3);
-    }
-
-    psu::~psu()
-    {
     #ifndef NDEBUG
-        print_internal_com_port_string();
+        fmt::print("Connection has been established.\n\n");
     #endif // NDEBUG
 
-        // Because this destructor is guaranteed to no-throw, we're going to
-        // simply ignore this result. Even if we cannot deinitialize from the
-        // system.
-        // TODO: Find a better way to deinitialize. Maybe some hard reset?
-        CAENHVRESULT result = CAENHV_DeinitSystem(this->handle);
+        // We just want to make sure we initialize the channels here. We're
+        // going to assume all channels are initialized.
+        internal_manager.initialize_channels(
+            this->handle,
+            { 0 }
+        );
     }
+
     
-    void psu::start_test(int)
+    void psu::start_test(int reserve)
     {
-        fmt::print("Test starting.\n");
+        fmt::print("\n\n----- Test Initiating -----\n");
+        fmt::print("Testing the connection to CH0\n\n");
+
+        internal_manager.enable_channel(0);
+        std::this_thread::sleep_for(std::chrono::seconds(5));
+
+        auto voltage = internal_manager.read_voltage(0);
+        auto current = internal_manager.read_low_precision_current(0);
+        fmt::print("Voltage is: {}\n", voltage);
+        fmt::print("Current is: {}\n", current);
+
+        internal_manager.disable_channel(0);
+
+        fmt::print("Finished checking connection\n\n");
     }
 
     void psu::print_internal_com_port_string()
