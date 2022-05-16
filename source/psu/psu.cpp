@@ -35,10 +35,6 @@ namespace msu_smdt
 
     psu::~psu()
     {
-    #ifndef NDEBUG
-        print_internal_com_port_string();
-    #endif // NDEBUG
-
         // Because this destructor is guaranteed to no-throw, we're going to
         // simply ignore this result. Even if we cannot deinitialize from the
         // system.
@@ -59,10 +55,6 @@ namespace msu_smdt
         // We should probably put an assert somewhere here.
         // assert(!is_empty)
 
-    #ifndef NDEBUG
-        fmt::print("COM Port Info Passed in: {}. is_empty = {}\n", is_empty);
-    #endif // NDEBUG
-
         // The CAEN HV Wrapper library expects the following format:
         // port_baudrate_data_stop_parity_lbusaddress.
         this->com_port_str = fmt::format(
@@ -74,11 +66,6 @@ namespace msu_smdt
             com_port_info.parity,
             com_port_info.lbusaddress
         );
-
-    #ifndef NDEBUG
-        fmt::print("\nWe want to see if we can link to the ");
-        fmt::print("CAENHVWrapper library.\n");
-    #endif // NDEBUG
 
         // Here are some variables specific to the power supply initialization.
         this->handle = -1;
@@ -97,10 +84,6 @@ namespace msu_smdt
             &handle
         );
 
-    #ifndef NDEBUG
-        fmt::print("Attempting connection. Result is {}.\n", result);
-    #endif // NDEBUG
-
         // Made to be more explicit.
         if (result != CAENHV_OK)
         {    
@@ -108,20 +91,12 @@ namespace msu_smdt
 
             // We'll probably want to log here rather than printing to STDOUT.
 
-        #ifndef NDEBUG
-            fmt::print("\tAttempting to read error: {}\n", error);
-        #endif // NDEBUG
-
             // We need the creator of this object to catch this error.
             throw std::runtime_error(error.c_str());
         }
 
         // If we've reached this point, then we've successfully
         // connected to the PSU.
-
-        // ------------------------------------------------------------------ //
-        // Found a better system. Use vectors and the data() member function  //
-        // ------------------------------------------------------------------ //
 
         // TODO: Need a better system. This is kinda clunky.
         unsigned short number_of_slots = -1;
@@ -155,10 +130,6 @@ namespace msu_smdt
             || (firmware_release_max_list == nullptr)
             || crate_map_result != CAENHV_OK)
         {
-        #ifndef NDEBUG
-            fmt::print("\n\n\t\t Invalid Allocation!\n\n");
-        #endif // NDEBUG
-
             // If we have an invalid allocation, we need to 
             // iterate through and free all the rest of the 
             // memory. Then, we will alert the caller. 
@@ -212,7 +183,6 @@ namespace msu_smdt
         // all the arguments passed in. Normally, we have to run through
         // these lists iteratively. However, we can leverage the fact that
         // we know what board we are dealing with.
-    #ifndef NDEBUG
         fmt::print("\tBoard #{}\n", 0);
         fmt::print("\tModel: {}\n", model_list);
         fmt::print("\tDescription: {}\n", description_list);
@@ -223,7 +193,6 @@ namespace msu_smdt
             firmware_release_max_list[0], 
             firmware_release_minimum_list[0]
         );
-    #endif // NDEBUG
 
         this->slot = (int) number_of_slots;
         this->number_of_channels = (int) number_of_channels_list[0];
@@ -242,10 +211,6 @@ namespace msu_smdt
         CAENHV_Free(serial_number_list);
         CAENHV_Free(firmware_release_minimum_list);
         CAENHV_Free(firmware_release_max_list);
-
-    #ifndef NDEBUG
-        fmt::print("Connection has been established.\n\n");
-    #endif // NDEBUG
 
         // We just want to make sure we initialize the channels here. We're
         // going to assume all channels are initialized.

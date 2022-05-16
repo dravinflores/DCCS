@@ -34,22 +34,8 @@
 // of channel parameters to a single channel.
 
 template <typename T>
-void set_channel_parameter(
-    T val,
-    int handle,
-    std::string_view parameter,
-    unsigned short channel_number
-)
+void set_channel_parameter(T val, int handle, std::string_view parameter, unsigned short channel_number)
 {
-#ifndef NDEBUG
-    fmt::print("Function set_channel_parameter called.\n");
-    fmt::print("Arguments passed in:\n");
-    fmt::print("\tArgument 1: val = {}\n", val);
-    fmt::print("\tArgument 2: handle = {}\n", handle);
-    fmt::print("\tArgument 3: parameter = {}\n", parameter);
-    fmt::print("\tArgument 4: channel_number = {}\n", channel_number);
-#endif // NDEBUG
-
     unsigned short slot = 0;
     const char* parameter_name_casted = (const char*) parameter.data();
     unsigned short number_of_channels = 1;
@@ -68,41 +54,14 @@ void set_channel_parameter(
 	);
 
     if (result != CAENHV_OK)
-    {
-        std::string error = fmt::format(
-            "CAENHV_SetChParam() error: {}",
-            CAENHV_GetError(handle) 
-        );
-
-    #ifndef NDEBUG
-        fmt::print("Exception Caught! Printing then throwing.\n");
-        fmt::print("\t{}\n", error);
-    #endif // NDEBUG
-        throw std::runtime_error(error.c_str());
-    }
+    {}
     else
-    {
-    #ifndef NDEBUG
-        fmt::print("\n");
-    #endif // NDEBUG
-    }
+    {}
 }
 
 template <typename T>
-T get_channel_parameter(
-    int handle,
-    std::string_view parameter,
-    unsigned short channel_number
-)
+T get_channel_parameter(int handle, std::string_view parameter, unsigned short channel_number)
 {
-#ifndef NDEBUG
-    fmt::print("Function get_channel_parameter called.");
-    fmt::print("Arguments passed in:\n");
-    fmt::print("\tArgument 1: handle = {}\n", handle);
-    fmt::print("\tArgument 2: parameter = {}\n", parameter);
-    fmt::print("\tArgument 3: channel_number = {}\n", channel_number);
-#endif // NDEBUG
-
     unsigned short slot = 0;
     const char* parameter_name_casted = (const char*) parameter.data();
     unsigned short number_of_channels = 1;
@@ -121,24 +80,9 @@ T get_channel_parameter(
 	);
 
     if (result != CAENHV_OK)
-    {
-        std::string error = fmt::format(
-            "CAENHV_SetChParam() error: {}",
-            CAENHV_GetError(handle) 
-        );
-
-    #ifndef NDEBUG
-        fmt::print("Exception Caught! Printing then throwing.\n");
-        fmt::print("\t{}\n", error);
-    #endif // NDEBUG
-        throw std::runtime_error(error.c_str());
-    }
+    {}
     else
-    {
-    #ifndef NDEBUG
-        fmt::print("\n");
-    #endif // NDEBUG
-    }
+    {}
 
     return received_value;
 }

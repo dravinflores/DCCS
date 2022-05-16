@@ -6,3 +6,6 @@ build/
 
 # VS Code keeps adding it's own config file. 
 .vscode/
+
+# Visual Studio, should we decide to use it
+.vs/
