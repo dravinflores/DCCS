@@ -4,6 +4,8 @@
     "homepage": "https://github.com",
     "description": "Software to control our internal Dark Current Program.",
     "dependencies": [
-        "fmt"
+        "fmt",
+        "tomlplusplus",
+        "spdlog"
     ]
 }

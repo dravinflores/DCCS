@@ -12,6 +12,8 @@
  *  Updates:
  ******************************************************************************/
 
+#include <spdlog/spdlog.h>
+#include <toml++/toml.h>
 #include <fmt/core.h>
 
 #include <psu/psu.hpp>
@@ -24,10 +26,9 @@ int main(int argc, char** argv)
     {
         fmt::print("\tArg {}: {}\n", i, argv[i]);
     }
-
     fmt::print("\n");
 
-    msu_smdt::com_port fake_com_port_connection {
+    msu_smdt::com_port fake_psu_com_connection {
         /* port */          "COM4",
         /* baud_rate */     "9600",
         /* data_bit */      "8",
@@ -36,10 +37,12 @@ int main(int argc, char** argv)
         /* lbusaddress */   "0"
     };
 
+    // msu_smdt::com_port dcch_connection{};
+
     try
     {
         msu_smdt::psu psuobj;
-        psuobj.initialize(fake_com_port_connection);
+        psuobj.initialize(fake_psu_com_connection);
         psuobj.start_test(0);
     }
     catch(const std::exception& e)

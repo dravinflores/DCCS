@@ -9,7 +9,9 @@ set(CMAKE_CXX_STANDARD          20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS        OFF)
 
-find_package(fmt REQUIRED)
+find_package(fmt CONFIG REQUIRED)
+find_package(spdlog CONFIG REQUIRED)
+find_package(tomlplusplus CONFIG REQUIRED)
 
 add_subdirectory(source/psu)
 add_executable(dccs source/main.cpp)
@@ -26,5 +28,7 @@ target_link_libraries(
         CAENHVWrapper::CAENHVWrapper
     PRIVATE
         fmt::fmt
+        spdlog::spdlog
+        tomlplusplus::tomlplusplus
         psuobj
 )
