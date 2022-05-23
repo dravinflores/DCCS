@@ -1,9 +1,9 @@
 # Documentation
-## Overview
+### Overview
 Welcome to the MSU sMDT DCCS Project Documentation. Located next to the title of this documentation is a small 
 table of contents icon, which can be used to navigate this documentation. 
 
-## How to Use This Documentation
+### How to Use This Documentation
 This documentation is meant to be read from chapter to chapter, much like a novel. However, this documentation will
 often refer to files that are in the project itself. So the recommended use is to have this documentation opened 
 alongside the the relevant source files. In this side-to-side manner, one can read the chapter and follow along with
