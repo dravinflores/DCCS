@@ -25,8 +25,6 @@ FetchContent_Declare(
 
 FetchContent_MakeAvailable(fmt spdlog)
 
-option(SPDLOG_FMT_EXTERNAL "Using an external fmt library for spdlog." ON)
-
 list(APPEND CMAKE_PREFIX_PATH D:/Qt/6.3.0/msvc2019_64)
 find_package(
     Qt6
