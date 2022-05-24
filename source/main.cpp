@@ -12,9 +12,10 @@
  *  Updates:
  ******************************************************************************/
 
-#include <spdlog/spdlog.h>
-#include <toml++/toml.h>
 #include <fmt/core.h>
+#include <spdlog/spdlog.h>
+
+#include <QSerialPort>
 
 #include <psu/psu.hpp>
 

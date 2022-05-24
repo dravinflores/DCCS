@@ -6,10 +6,8 @@
 # the finding of the library here.
 list(APPEND CMAKE_MODULE_PATH "${CMAKE_SOURCE_DIR}/cmake/")
 find_package(CAENHVWrapper REQUIRED)
-find_package(fmt REQUIRED)
 
 include_directories(${CMAKE_SOURCE_DIR}/source/)
-
 
 # Earlier attempts to create this object attempted to create a 
 # channel object and a psu object, and then link them together
