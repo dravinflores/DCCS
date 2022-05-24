@@ -9,6 +9,9 @@ often refer to files that are in the project itself. So the recommended use is t
 alongside the the relevant source files. In this side-to-side manner, one can read the chapter and follow along with
 the source code, simultaneously. 
 
+### Appendices
+Appendices are used for items that wouldn't fit in the chapter scheme (i.e. the section on bugs). 
+
 ## Chapter 1: The Outline of the Project
 ### The Source Tree
 There are three main folders to consider in the source tree: `dcch`, `gui`, and `psu`. The `dcch` folder holds all the 
@@ -16,10 +19,6 @@ source files that relate to the Dark Current Control Hardware. The `gui` folder 
 relate to the Graphical User Interface. The `psu` folder holds all the source files related to controlled the
 Power Supply Unit. The last file located in the source tree is the `main.cpp` file, which is the entry point for
 the entire program. 
-
-### The Build System
-This project uses CMake and Vcpkg as the build system. Refer to the `README.md` file for details on how to configure
-the build system. 
 
 ## Chapter 2: The Power Supply
 ### Introduction
@@ -75,3 +74,13 @@ internal properties of every channel. Simply put: the `channel_manager` controls
 controls the testing. 
 
 ## Chapter 3: TBD
+
+## A-1: Hilarious Bugs
+### CAEN HV Wrapper
+This wrapper has introduced many bugs. Bug among the most annoying is the following: the library itself must define
+a whole bunch of types, macros, and similar items. This was one of the most confusing bugs to identify due to its
+relative obscurity. However, the following bug exists: if the CAEN HV Wrapper Library (HVLIB) is included before 
+**any** Qt Libraries, the compiler will complain with seemingly nonsensical errors: 
+`'char' followed by 'char' is illegal` and whatnot. The source of the errors is that the HVLIB defines a whole bunch
+of things that Qt defines. Due to this, the HVLIB *must be the last library included* in order for the program to
+compile. However, it is not known what kinds of bugs this might introduce down the line.

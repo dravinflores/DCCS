@@ -12,10 +12,10 @@
  *  Updates:
  ******************************************************************************/
 
+#include <QApplication>
+
 #include <fmt/core.h>
 #include <spdlog/spdlog.h>
-
-#include <QSerialPort>
 
 #include <psu/psu.hpp>
 

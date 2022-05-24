@@ -28,8 +28,10 @@ FetchContent_MakeAvailable(fmt spdlog)
 list(APPEND CMAKE_PREFIX_PATH D:/Qt/6.3.0/msvc2019_64)
 find_package(
     Qt6
-    COMPONENTS REQUIRED
-        SerialPort
+    REQUIRED COMPONENTS
+        Core
+        Gui
+        Widgets
 )
 qt_standard_project_setup()
 
@@ -47,8 +49,10 @@ target_link_libraries(
     PUBLIC 
         CAENHVWrapper::CAENHVWrapper
     PRIVATE
-        Qt6::SerialPort
-        spdlog::spdlog
+        Qt::Core
+        Qt::Gui
+        Qt::Widgets
         fmt::fmt
+        spdlog::spdlog
         psuobj
 )
