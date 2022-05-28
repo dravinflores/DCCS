@@ -1,246 +1,186 @@
-/*******************************************************************************
+/***********************************************************************************************************************
  *  File:           psu/psu.cpp
  *  Author(s):      Dravin Flores <dravinflores@gmail.com>
- *  Date Created:   17 December, 2021
+ *  Date Created:   17 December 2021
  * 
  *  Purpose:        This file defines all the functions prototyped in
  *                  the psu.hpp header file.
  * 
  *  Known Issues:   
- *      -   Not using an initializer list for the channel class. This is because
- *          we cannot create a channel object without first creating a
- *          PSUOBJ. Information is needed from the PSUOBJ in order to
- *          initialize the channel object. More study and observation is
- *          required to see if there is a fix.
  * 
  *  Workarounds:    
- *      -   Simply use a default constructor for the channel object, and then
- *          copy by value.
  * 
  *  Updates:
- ******************************************************************************/
+ **********************************************************************************************************************/
+
+#include <chrono>
+#include <thread>
 
 #include <psu/psu.hpp>
+#include <psu/hv_interface.hpp>
 
 namespace msu_smdt
 {
-    psu::psu():
+    static constexpr int default_value { 512 };
+
+    psu::psu(const msu_smdt::com_port& com_port_info):
         com_port_str        { "DEFAULT" },
         handle              { -1 },
         number_of_channels  { -1 },
         serial_number       { -1 },
         slot                { -1 },
-        firmware_version    { "DEFAULT" }
-    {}
+        firmware_version    { "DEFAULT" },
+        active_channels     {
+            // For CH0
+            { 0, false, default_value, default_value, default_value },
+
+            // For CH1
+            { 1, false, default_value, default_value, default_value },
+
+            // For CH2
+            { 2, false, default_value, default_value, default_value },
+
+            // For CH3
+            { 3, false, default_value, default_value, default_value }
+        },
+        logger { spdlog::get("psu_logger") }
+    {
+        this->handle = initialize_system(com_port_info);
+
+        std::tie(this->number_of_channels, this->serial_number, this->slot, this->firmware_version)
+            = get_crate_map(this->handle);
+    }
 
     psu::~psu()
     {
-        // Because this destructor is guaranteed to no-throw, we're going to
-        // simply ignore this result. Even if we cannot deinitialize from the
-        // system.
-        // TODO: Find a better way to deinitialize. Maybe some hard reset?
-        CAENHVRESULT result = CAENHV_DeinitSystem(this->handle);
+        deinitialize_system(this->handle);
     }
 
-    void psu::initialize(const com_port& com_port_info)
+    void psu::start_test()
     {
-        // We need to check that the proper com_port struct was passed in.
-        bool is_empty = com_port_info.port.empty()              \
-            || com_port_info.baud_rate.empty()                  \
-            || com_port_info.data_bit.empty()                   \
-            || com_port_info.stop_bit.empty()                   \
-            || com_port_info.parity.empty()                     \
-            || com_port_info.lbusaddress.empty();
-
-        // We should probably put an assert somewhere here.
-        // assert(!is_empty)
-
-        // The CAEN HV Wrapper library expects the following format:
-        // port_baudrate_data_stop_parity_lbusaddress.
-        this->com_port_str = fmt::format(
-            "{}_{}_{}_{}_{}_{}", 
-            com_port_info.port,
-            com_port_info.baud_rate, 
-            com_port_info.data_bit,
-            com_port_info.stop_bit,
-            com_port_info.parity,
-            com_port_info.lbusaddress
-        );
-
-        // Here are some variables specific to the power supply initialization.
-        this->handle = -1;
-        CAENHV_SYSTEM_TYPE_t system = N1470;
-        int link_type = LINKTYPE_USB_VCP;
-        std::string username = "";
-        std::string password = "";
-
-        // Now we need to make the connection to the power supply.
-        CAENHVRESULT result = CAENHV_InitSystem(
-            system, 
-            link_type, 
-            (void*) com_port_str.c_str(), 
-            username.c_str(), 
-            password.c_str(),
-            &handle
-        );
-
-        // Made to be more explicit.
-        if (result != CAENHV_OK)
-        {    
-            std::string error = CAENHV_GetError(this->handle);
-
-            // We'll probably want to log here rather than printing to STDOUT.
-
-            // We need the creator of this object to catch this error.
-            throw std::runtime_error(error.c_str());
-        }
-
-        // If we've reached this point, then we've successfully
-        // connected to the PSU.
-
-        // TODO: Need a better system. This is kinda clunky.
-        unsigned short number_of_slots = -1;
-        unsigned short* number_of_channels_list;
-        char* model_list;
-        char* description_list;
-        unsigned short* serial_number_list;
-        unsigned char* firmware_release_minimum_list;
-        unsigned char* firmware_release_max_list;
-
-        // The documentation for the HV Wrapper Library specifically mentions
-        // calling this function DIRECTLY AFTER initialization.
-        CAENHVRESULT crate_map_result = CAENHV_GetCrateMap(
-            this->handle,
-            &number_of_slots,
-            &number_of_channels_list,
-            &model_list,
-            &description_list,
-            &serial_number_list,
-            &firmware_release_minimum_list,
-            &firmware_release_max_list
-        );
-
-        // We need to check for any invalid allocations.
-        if ((number_of_slots == -1)
-            || (number_of_channels_list == nullptr) 
-            || (model_list == nullptr) 
-            || (description_list == nullptr) 
-            || (serial_number_list == nullptr)
-            || (firmware_release_minimum_list == nullptr)
-            || (firmware_release_max_list == nullptr)
-            || crate_map_result != CAENHV_OK)
-        {
-            // If we have an invalid allocation, we need to 
-            // iterate through and free all the rest of the 
-            // memory. Then, we will alert the caller. 
-            // Note: I have no idea how these work under the hood.
-            if (number_of_channels_list != nullptr) 
-            {
-                CAENHV_Free(number_of_channels_list);
-            }
-            if (model_list != nullptr) 
-            {
-                CAENHV_Free(model_list);
-            }
-            if (description_list != nullptr) 
-            {
-                CAENHV_Free(description_list);
-            }
-            if (serial_number_list != nullptr)
-            {
-                CAENHV_Free(serial_number_list);
-            }
-            if (firmware_release_minimum_list != nullptr)
-            {
-                CAENHV_Free(firmware_release_minimum_list);
-            }
-            if (firmware_release_max_list != nullptr)
-            {
-                CAENHV_Free(firmware_release_max_list);
-            }
-
-            std::string message;
-
-            if (crate_map_result == CAENHV_OK)
-            {
-                message = "Invalid allocation for arguments to "
-                          "CAENHV_GetCrateMap";
-            }
-            else
-            {
-                const std::string error = CAENHV_GetError(this->handle);
-                message = fmt::format("CAENHV_GetCrateMap Error: {}", error);
-            }
-
-            // Now we need to deinitialize the PSU before we throw.
-            // We should handle the case when we cannot deinitialize the PSU.
-            CAENHVRESULT result = CAENHV_DeinitSystem(this->handle);
-
-            throw std::runtime_error(message.c_str());
-        }
-
-        // Now that we're at this point, we should have properly allocated
-        // all the arguments passed in. Normally, we have to run through
-        // these lists iteratively. However, we can leverage the fact that
-        // we know what board we are dealing with.
-        fmt::print("\tBoard #{}\n", 0);
-        fmt::print("\tModel: {}\n", model_list);
-        fmt::print("\tDescription: {}\n", description_list);
-        fmt::print("\tChannels available: {}\n", number_of_channels_list[0]);
-        fmt::print("\tSerial: {}\n", serial_number_list[0]);
-        fmt::print(
-            "\tFirmware: {}.{}\n", 
-            firmware_release_max_list[0], 
-            firmware_release_minimum_list[0]
-        );
-
-        this->slot = (int) number_of_slots;
-        this->number_of_channels = (int) number_of_channels_list[0];
-        this->serial_number = (int) serial_number_list[0];
-        
-        this->firmware_version = fmt::format(
-            "{}.{}", 
-            firmware_release_max_list[0], 
-            firmware_release_minimum_list[0]
-        );
-
-        // No clue how this works internally. 
-        CAENHV_Free(number_of_channels_list);
-        CAENHV_Free(model_list);
-        CAENHV_Free(description_list);
-        CAENHV_Free(serial_number_list);
-        CAENHV_Free(firmware_release_minimum_list);
-        CAENHV_Free(firmware_release_max_list);
-
-        // We just want to make sure we initialize the channels here. We're
-        // going to assume all channels are initialized.
-        internal_manager.initialize_channels(
-            this->handle,
-            { 0 }
-        );
-    }
-
-    
-    void psu::start_test(int reserve)
-    {
-        fmt::print("\n\n----- Test Initiating -----\n");
-        fmt::print("Testing the connection to CH0\n\n");
-
-        internal_manager.enable_channel(0);
+        logger->debug("----- Initiating Test -----");
+        logger->debug("Testing connection to CH0");
+        enable_channel(0);
         std::this_thread::sleep_for(std::chrono::seconds(5));
 
-        auto voltage = internal_manager.read_voltage(0);
-        auto current = internal_manager.read_low_precision_current(0);
-        fmt::print("Voltage is: {}\n", voltage);
-        fmt::print("Current is: {}\n", current);
+        auto voltage = read_voltage(0);
+        auto current = read_low_precision_current(0);
 
-        internal_manager.disable_channel(0);
+        logger->debug("Voltage is: {}", voltage);
+        logger->debug("Current is: {}", current);
 
-        fmt::print("Finished checking connection\n\n");
+        disable_channel(0);
+
+        logger->debug("----- Test Completed -----");
     }
 
-    void psu::print_internal_com_port_string()
+    void psu::initialize_channels(std::vector<unsigned short> channels_to_activate)
     {
-        fmt::print("{}\n", this->com_port_str);
+        for (auto& channel : channels_to_activate)
+        {
+            this->active_channels[channel].is_active = true;
+
+            set_programmed_voltage(channel, 15.00F);
+            set_programmed_current_limit(channel, 2.00F);
+            set_max_voltage_limit(channel, 4015.00F);
+            set_ramp_up_voltage_rate(channel, 15.00F);
+            set_ramp_down_voltage_rate(channel, 15.00F);
+            set_overcurrent_time_allowed(channel, 1000.00F);
+            set_method_of_powering_down(channel, recover_mode::ramp);
+        }
+    }
+
+    void psu::enable_channel(unsigned short channel)
+    {
+        unsigned long value = 1;
+        set_channel_parameter(value, this->handle, "Pw", channel);
+    }
+
+    void psu::disable_channel(unsigned short channel)
+    {
+        unsigned long value = 0;
+        set_channel_parameter(value, this->handle, "Pw", channel);  
+    }
+
+    void psu::set_programmed_voltage(unsigned short channel, float value)
+    {
+        set_channel_parameter(value, this->handle, "VSet", channel);
+    }
+
+    void psu::set_programmed_current_limit(unsigned short channel, float value)
+    {
+        set_channel_parameter(value, this->handle, "ISet", channel);
+    }
+
+    void psu::set_max_voltage_limit(unsigned short channel, float value)
+    {
+        set_channel_parameter(value, this->handle, "MaxV", channel);
+    }
+
+    void psu::set_ramp_up_voltage_rate(unsigned short channel, float value)
+    {
+        set_channel_parameter(value, this->handle, "RUp", channel);
+    }
+
+    void psu::set_ramp_down_voltage_rate(unsigned short channel, float value)
+    {
+        set_channel_parameter(value, this->handle, "RDwn", channel);
+    }
+
+    void psu::set_overcurrent_time_allowed(unsigned short channel, float value)
+    {
+        set_channel_parameter(value, this->handle, "Trip", channel);
+    }
+
+    void psu::set_method_of_powering_down(unsigned short channel, recover_mode mode)
+    {
+        unsigned long value = 1;
+
+        if (mode == recover_mode::kill)
+        {
+            value = 0;
+        }
+        else
+        {
+            value = 1;
+        }
+
+        set_channel_parameter(value, this->handle, "PDwn", channel);
+    }
+
+    float psu::read_voltage(unsigned short channel)
+    {
+        auto voltage = get_channel_parameter<float>(this->handle, "VMon", channel);
+        return voltage;
+    }
+
+    bool psu::is_in_high_precision_mode(unsigned short channel)
+    {
+        auto is_low = get_channel_parameter<float>(this->handle, "ImonRange", channel);
+        return !is_low;
+    }
+
+    float psu::read_low_precision_current(unsigned short channel)
+    {
+        auto current = get_channel_parameter<float>(this->handle, "IMonL", channel);
+        return current;
+    }
+
+    float psu::read_high_precision_current(unsigned short channel)
+    {
+        auto current = get_channel_parameter<float>(this->handle, "IMonH", channel);
+        return current;
+    }
+
+    bool psu::is_normal_polarity(unsigned short channel)
+    {
+        auto is_reverse = get_channel_parameter<float>(this->handle, "Polarity", channel);
+        return !is_reverse;
+    }
+
+    unsigned long psu::read_channel_status(unsigned short channel)
+    {
+        auto ch_status = get_channel_parameter<float>(this->handle, "ChStatus", channel);
+        return ch_status;
     }
 }

@@ -1,4 +1,4 @@
-/*******************************************************************************
+/***********************************************************************************************************************
  *  File:           main.cpp
  *  Author(s):      Dravin Flores <dravinflores@gmail.com>
  *  Date Created:   16 December, 2021
@@ -10,46 +10,55 @@
  *  Workarounds:    
  * 
  *  Updates:
- ******************************************************************************/
+ **********************************************************************************************************************/
 
 #include <QApplication>
+#include <QDir>
 
-#include <fmt/core.h>
 #include <spdlog/spdlog.h>
+#include <spdlog/sinks/basic_file_sink.h>
 
-#include <psu/psu.hpp>
+#include <gui/MainWindow.hpp>
 
 int main(int argc, char** argv)
 {
-    fmt::print("\nPrinting arguments passed in to main.\n");
+    // std::string executable_dir = QDir::currentPath().toStdString();
+    // std::string log_file = executable_dir + "/log/log.txt";
 
-    for (int i = 0; i < argc; ++i)
-    {
-        fmt::print("\tArg {}: {}\n", i, argv[i]);
-    }
-    fmt::print("\n");
+    std::string log_file = "log/log.txt";
 
-    msu_smdt::com_port fake_psu_com_connection {
-        /* port */          "COM4",
-        /* baud_rate */     "9600",
-        /* data_bit */      "8",
-        /* stop_bit */      "0",
-        /* parity */        "0",
-        /* lbusaddress */   "0"
-    };
+    // Here we will create our central sink.
+    auto central_sink = std::make_shared<spdlog::sinks::basic_file_sink_mt>(log_file);
 
-    // msu_smdt::com_port dcch_connection{};
+    // Now we can create the separate loggers.
+    auto main_logger = std::make_shared<spdlog::logger>("main_logger", central_sink);
+    auto gui_logger = std::make_shared<spdlog::logger>("gui_logger", central_sink);
+    auto psu_logger = std::make_shared<spdlog::logger>("psu_logger", central_sink);
+    auto hvlib_logger = std::make_shared<spdlog::logger>("hvlib_logger", central_sink);
 
-    try
-    {
-        msu_smdt::psu psuobj;
-        psuobj.initialize(fake_psu_com_connection);
-        psuobj.start_test(0);
-    }
-    catch(const std::exception& e)
-    {
-        fmt::print("Unable to connect: {}\n\n", e.what());
-    }
+    // Register these loggers.
+    spdlog::register_logger(main_logger);
+    spdlog::register_logger(gui_logger);
+    spdlog::register_logger(psu_logger);
+    spdlog::register_logger(hvlib_logger);
 
-    return 0;
+    // Adjust the level.
+    main_logger->set_level(spdlog::level::debug);
+    gui_logger->set_level(spdlog::level::debug);
+    psu_logger->set_level(spdlog::level::debug);
+    hvlib_logger->set_level(spdlog::level::debug);
+
+    // We want to immediately write every debug message;
+    main_logger->flush_on(spdlog::level::debug);
+    gui_logger->flush_on(spdlog::level::debug);
+    psu_logger->flush_on(spdlog::level::debug);
+    hvlib_logger->flush_on(spdlog::level::debug);
+
+    QApplication app(argc, argv);
+    MainWindow main_window;
+    main_window.show();
+
+    spdlog::drop_all();
+
+    return app.exec();
 }

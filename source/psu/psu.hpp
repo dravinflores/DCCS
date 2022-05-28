@@ -1,43 +1,43 @@
-/*******************************************************************************
+/***********************************************************************************************************************
  *  File:           psu/psu.hpp
- *  Author(s):      Dravin Flores <dravinflores@gmail.com>
- *  Date Created:   17 December, 2021
+ *  Author:         Dravin Flores <dravinflores@gmail.com>
+ *  Date Created:   17 December 2021
  * 
- *  Purpose:        This file houses the PSU object.
+ *  Purpose:        This file houses the psu object, which is the primary
+ *                  method of interfacing with the power supply.
  * 
- *  Known Issues:   
- * 
- *  Workarounds:    
+ *  Known Issues:
  * 
  *  Updates:
- ******************************************************************************/
+ **********************************************************************************************************************/
 
 #pragma once
 
-#include <fmt/core.h>
-
-#include <string>
-#include <string_view>
 #include <vector>
-#include <chrono>
-#include <thread>
-#include <cstring>
-#include <stdexcept>
+#include <string>
+#include <memory>
 
-#include <psu/channel.hpp>
+#include <spdlog/spdlog.h>
 
-#include <CAENHVWrapper.h>
+#include <psu/com_port_struct.hpp>
 
 namespace msu_smdt
 {
-    struct com_port
+    // This is more of an administrative abstraction, meant to 
+    // help manage each of the channels more independently.
+    struct channel
     {
-        std::string_view port;
-        std::string_view baud_rate;
-        std::string_view data_bit;
-        std::string_view stop_bit;
-        std::string_view parity;
-        std::string_view lbusaddress;
+        int number;
+        bool is_active;
+        double last_read_voltage;
+        double last_read_current;
+        double intrinsic_current;
+    };
+
+    enum class recover_mode
+    {
+        kill,
+        ramp
     };
 
     class psu
@@ -45,7 +45,7 @@ namespace msu_smdt
     public:
         // The default constructor. This is the only viable constructor.
         // A separate constructor is allowed for debugging purposes.
-        psu();
+        psu(const msu_smdt::com_port& com_port_info);
 
         // We do not want to be able to move a psu object. This is because
         // we would need to reinitialize with the power supply upon the move.
@@ -61,11 +61,27 @@ namespace msu_smdt
         // Just our typical destructor.
         ~psu();
 
-        void initialize(const msu_smdt::com_port&);
+        void start_test();
 
-        void start_test(int);
+        void initialize_channels(std::vector<unsigned short> channels_to_activate);
 
-        void print_internal_com_port_string();
+        void enable_channel(unsigned short channel);
+        void disable_channel(unsigned short channel);
+
+        void set_programmed_voltage(unsigned short channel, float value);
+        void set_programmed_current_limit(unsigned short channel, float value);
+        void set_max_voltage_limit(unsigned short channel, float value);
+        void set_ramp_up_voltage_rate(unsigned short channel, float value);
+        void set_ramp_down_voltage_rate(unsigned short channel, float value);
+        void set_overcurrent_time_allowed(unsigned short channel, float value);
+        void set_method_of_powering_down(unsigned short channel, recover_mode mode);
+
+        float read_voltage(unsigned short channel);
+        bool is_in_high_precision_mode(unsigned short channel);
+        float read_low_precision_current(unsigned short channel);
+        float read_high_precision_current(unsigned short channel);
+        bool is_normal_polarity(unsigned short channel);
+        unsigned long read_channel_status(unsigned short channel);
 
     private:
         // Here are all the board specific pieces of information.
@@ -75,8 +91,11 @@ namespace msu_smdt
         int serial_number;
         int slot;
         std::string firmware_version;
-        
-        // Now we will have the channels here.
-        channel_manager internal_manager;
+
+        // Here we will track the channels being activated and deactivated.
+        std::vector<channel> active_channels;
+
+        // The internal logger.
+        std::shared_ptr<spdlog::logger> logger;
     };
 }

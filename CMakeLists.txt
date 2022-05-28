@@ -1,12 +1,16 @@
 cmake_minimum_required(VERSION 3.20)
 
-cmake_policy(SET CMP0091 NEW)
-project(dccs CXX)
+project(dccs VERSION 0.1.0 LANGUAGES CXX)
 include(FetchContent)
 
 set(CMAKE_CXX_STANDARD          23)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS        OFF)
+
+# A few variables that we can set based on how we want to compile everything.
+option(VIRTUALIZE_HVLIB "Virtualize the connection to the CAEN HV Wrapper Library (HVLIB)" ON)
+
+set(SPDLOG_FMT_EXTERNAL ON)
 
 # Pull any needed libraries before adding subdirectories, so that each of the 
 # subdirectories can use the libraries.
@@ -35,8 +39,9 @@ find_package(
 )
 qt_standard_project_setup()
 
-add_subdirectory(source/psu)
 add_executable(dccs source/main.cpp)
+add_subdirectory(source/psu)
+add_subdirectory(source/gui)
 
 target_include_directories(
     dccs 
@@ -45,14 +50,12 @@ target_include_directories(
 )
 
 target_link_libraries(
-    dccs 
-    PUBLIC 
-        CAENHVWrapper::CAENHVWrapper
+    dccs
     PRIVATE
-        Qt::Core
-        Qt::Gui
-        Qt::Widgets
+        psu
         fmt::fmt
         spdlog::spdlog
-        psuobj
+        Qt::Gui
+        Qt::Core
+        Qt::Widgets
 )
