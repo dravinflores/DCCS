@@ -156,7 +156,7 @@ namespace msu_smdt
 
     bool psu::is_in_high_precision_mode(unsigned short channel)
     {
-        auto is_low = get_channel_parameter<float>(this->handle, "ImonRange", channel);
+        auto is_low = get_channel_parameter<unsigned long>(this->handle, "ImonRange", channel);
         return !is_low;
     }
 
@@ -174,13 +174,13 @@ namespace msu_smdt
 
     bool psu::is_normal_polarity(unsigned short channel)
     {
-        auto is_reverse = get_channel_parameter<float>(this->handle, "Polarity", channel);
+        auto is_reverse = get_channel_parameter<unsigned long>(this->handle, "Polarity", channel);
         return !is_reverse;
     }
 
     unsigned long psu::read_channel_status(unsigned short channel)
     {
-        auto ch_status = get_channel_parameter<float>(this->handle, "ChStatus", channel);
+        auto ch_status = get_channel_parameter<unsigned long>(this->handle, "ChStatus", channel);
         return ch_status;
     }
 }
