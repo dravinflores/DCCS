@@ -14,88 +14,73 @@
 #pragma once
 
 #include <vector>
-#include <string>
-#include <memory>
 
 #include <spdlog/spdlog.h>
 
 #include <psu/com_port_struct.hpp>
+#include <psu/hv_interface.hpp>
 
-namespace msu_smdt
+enum class recovery_mode
 {
-    // This is more of an administrative abstraction, meant to 
-    // help manage each of the channels more independently.
-    struct channel
-    {
-        int number;
-        bool is_active;
-        double last_read_voltage;
-        double last_read_current;
-        double intrinsic_current;
-    };
+    kill,
+    ramp
+};
 
-    enum class recover_mode
-    {
-        kill,
-        ramp
-    };
+class read_only_psu
+{
+public:
+    read_only_psu();
+    ~read_only_psu();
 
-    class psu
-    {
-    public:
-        // The default constructor. This is the only viable constructor.
-        // A separate constructor is allowed for debugging purposes.
-        psu(const msu_smdt::com_port& com_port_info);
+    read_only_psu(read_only_psu&&) = delete;
+    read_only_psu(const read_only_psu&) = delete;
+    read_only_psu& operator=(read_only_psu&&) = delete;
+    read_only_psu& operator=(const read_only_psu&) = delete;
+    
+    float read_voltage(unsigned short channel);
+    bool is_in_high_precision_mode(unsigned short channel);
+    float read_low_precision_current(unsigned short channel);
+    float read_high_precision_current(unsigned short channel);
+    bool is_normal_polarity(unsigned short channel);
+    unsigned long read_channel_status(unsigned short channel);
 
-        // We do not want to be able to move a psu object. This is because
-        // we would need to reinitialize with the power supply upon the move.
-        psu& operator=(psu&&) = delete;
-        psu(psu&&) = delete;
+protected:
+    std::shared_ptr<spdlog::logger> logger;
 
-        // We do not want to be able to copy a psu object. This is because the
-        // connection to the psu should be unique and exclusive. Therefore,
-        // we cannot have two psu objects connected to the same psu.
-        psu(const psu&) = delete;
-        psu& operator=(const psu&) = delete;
+private:
+    hv_interface interface;
+};
 
-        // Just our typical destructor.
-        ~psu();
 
-        void start_test();
+class control_psu : private read_only_psu
+{
+public:
+    control_psu(const msu_smdt::com_port& port_info);
+    ~control_psu();
 
-        void initialize_channels(std::vector<unsigned short> channels_to_activate);
+    control_psu(control_psu&&) = delete;
+    control_psu(const control_psu&) = delete;
+    control_psu& operator=(control_psu&&) = delete;
+    control_psu& operator=(const control_psu&) = delete;
 
-        void enable_channel(unsigned short channel);
-        void disable_channel(unsigned short channel);
+    void pretend_start();
 
-        void set_programmed_voltage(unsigned short channel, float value);
-        void set_programmed_current_limit(unsigned short channel, float value);
-        void set_max_voltage_limit(unsigned short channel, float value);
-        void set_ramp_up_voltage_rate(unsigned short channel, float value);
-        void set_ramp_down_voltage_rate(unsigned short channel, float value);
-        void set_overcurrent_time_allowed(unsigned short channel, float value);
-        void set_method_of_powering_down(unsigned short channel, recover_mode mode);
+    void force_disconnect();
 
-        float read_voltage(unsigned short channel);
-        bool is_in_high_precision_mode(unsigned short channel);
-        float read_low_precision_current(unsigned short channel);
-        float read_high_precision_current(unsigned short channel);
-        bool is_normal_polarity(unsigned short channel);
-        unsigned long read_channel_status(unsigned short channel);
+    void initialize_channels(std::vector<unsigned short> channels_to_activate);
 
-    private:
-        // Here are all the board specific pieces of information.
-        std::string com_port_str;
-        int handle;
-        int number_of_channels;
-        int serial_number;
-        int slot;
-        std::string firmware_version;
+    void power_channel_on(unsigned short channel);
+    void power_channel_off(unsigned short channel);
 
-        // Here we will track the channels being activated and deactivated.
-        std::vector<channel> active_channels;
+    void set_programmed_voltage(unsigned short channel, float value);
+    void set_programmed_current_limit(unsigned short channel, float value);
+    void set_max_voltage_limit(unsigned short channel, float value);
+    void set_ramp_up_voltage_rate(unsigned short channel, float value);
+    void set_ramp_down_voltage_rate(unsigned short channel, float value);
+    void set_overcurrent_time_allowed(unsigned short channel, float value);
+    void set_method_of_powering_down(unsigned short channel, recovery_mode mode);
 
-        // The internal logger.
-        std::shared_ptr<spdlog::logger> logger;
-    };
-}
+private:
+    hv_interface interface;
+    bool has_force_disconnected;
+};

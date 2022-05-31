@@ -3,6 +3,7 @@ include_directories(${CMAKE_SOURCE_DIR}/source/)
 add_library(
     hv_interface
     OBJECT
+        hv_interface.cpp
         hv_interface.hpp
         com_port_struct.hpp
 )

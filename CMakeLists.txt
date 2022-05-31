@@ -10,11 +10,16 @@ set(CMAKE_CXX_EXTENSIONS        OFF)
 # A few variables that we can set based on how we want to compile everything.
 option(VIRTUALIZE_HVLIB "Virtualize the connection to the CAEN HV Wrapper Library (HVLIB)" ON)
 
+if (MSVC)
+    list(APPEND CMAKE_PREFIX_PATH D:/Qt/6.3.0/msvc2019_64)
+elseif(APPLE)
+    list(APPEND CMAKE_PREFIX_PATH $ENV{HOME}/Qt/6.3.0/macos)
+endif()
+
 set(SPDLOG_FMT_EXTERNAL ON)
 
 # Pull any needed libraries before adding subdirectories, so that each of the 
 # subdirectories can use the libraries.
-
 FetchContent_Declare(
     fmt
     GIT_REPOSITORY https://github.com/fmtlib/fmt.git
@@ -29,7 +34,6 @@ FetchContent_Declare(
 
 FetchContent_MakeAvailable(fmt spdlog)
 
-list(APPEND CMAKE_PREFIX_PATH D:/Qt/6.3.0/msvc2019_64)
 find_package(
     Qt6
     REQUIRED COMPONENTS

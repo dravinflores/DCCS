@@ -18,8 +18,8 @@ MainWindow::MainWindow(QWidget* parent):
         .lbusaddress    = "0"
     };
         
-    msu_smdt::psu psuobj(fake_com_port_connection);
-    psuobj.start_test();
+    control_psu psuobj(fake_com_port_connection);
+    psuobj.pretend_start();
 }
 
 MainWindow::~MainWindow()
