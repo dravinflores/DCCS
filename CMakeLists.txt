@@ -1,14 +1,16 @@
 cmake_minimum_required(VERSION 3.20)
 
-project(dccs VERSION 0.1.0 LANGUAGES CXX)
+project(dccs VERSION 0.1.0 LANGUAGES C CXX)
 include(FetchContent)
 
 set(CMAKE_CXX_STANDARD          23)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS        OFF)
+set(C_STANDARD                  11)
 
 # A few variables that we can set based on how we want to compile everything.
 option(VIRTUALIZE_HVLIB "Virtualize the connection to the CAEN HV Wrapper Library (HVLIB)" ON)
+option(TEST_FAKEHV "Check testing of the FakeHV Library" OFF)
 
 if (MSVC)
     list(APPEND CMAKE_PREFIX_PATH D:/Qt/6.3.0/msvc2019_64)
@@ -56,7 +58,7 @@ target_include_directories(
 target_link_libraries(
     dccs
     PRIVATE
-        psu
+        PSUController
         fmt::fmt
         spdlog::spdlog
         Qt::Gui

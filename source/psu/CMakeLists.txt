@@ -1,15 +1,15 @@
 include_directories(${CMAKE_SOURCE_DIR}/source/)
 
 add_library(
-    hv_interface
+    HVInterface
     OBJECT
-        hv_interface.cpp
-        hv_interface.hpp
-        com_port_struct.hpp
+        HVInterface.cpp
+        HVInterface.hpp
+        Port.hpp
 )
 
 target_link_libraries(
-    hv_interface
+    HVInterface
     PRIVATE
         fmt::fmt
         spdlog::spdlog
@@ -17,34 +17,40 @@ target_link_libraries(
 
 if (VIRTUALIZE_HVLIB)
     add_compile_definitions(VIRTUALIZE_CONNECTION)
+    add_subdirectory(FakeHV)
+    target_link_libraries(
+        HVInterface
+        PRIVATE
+            FakeHV
+    )
 else()
     list(APPEND CMAKE_MODULE_PATH "${CMAKE_SOURCE_DIR}/cmake/")
     find_package(CAENHVWrapper REQUIRED)
 
     target_link_libraries(
-        hv_interface
+        HVInterface
         PUBLIC
             CAENHVWrapper::CAENHVWrapper
     )
 
     target_include_directories(
-        hv_interface
+        HVInterface
         PUBLIC
             CAENHVWrapper::CAENHVWrapper
     )
 endif()
 
 add_library(
-    psu
+    PSUController
     STATIC
-        psu.cpp
-        psu.hpp
+        PSUController.cpp
+        PSUController.hpp
 )
 
 target_link_libraries(
-    psu
+    PSUController
     PRIVATE
-        hv_interface
+        HVInterface
         fmt::fmt
         spdlog::spdlog
 )

@@ -22,9 +22,7 @@
 
 int main(int argc, char** argv)
 {
-    // std::string executable_dir = QDir::currentPath().toStdString();
-    // std::string log_file = executable_dir + "/log/log.txt";
-
+    // This is in relation to where the executable is ran.
     std::string log_file = "log/log.txt";
 
     // Here we will create our central sink.
