@@ -4,16 +4,13 @@
 #include <thread>
 #include <string>
 
-PSUController::PSUController(bool logging, std::string path):
+#include <spdlog/sinks/stdout_color_sinks.h>
+
+PSUController::PSUController():
     forceClosed { false },
-    interface { HVInterface(logging, path) },
-    logger { nullptr }
-{
-    if (logging)
-    {
-        logger = spdlog::get("hvlib_logger");
-    }
-}
+    interface(),
+    logger { spdlog::stdout_color_mt("PSUController") }
+{}
 
 PSUController::~PSUController()
 {}
@@ -50,32 +47,6 @@ void PSUController::disconnect()
     }
 }
 
-void PSUController::pretendTest()
-{
-    if (logger)
-    {
-        logger->debug("----- Initiating Test -----");
-        logger->debug("Testing connection to CH0");
-    }
-    
-    powerChannelOn(0);
-    std::this_thread::sleep_for(std::chrono::seconds(5));
-
-    auto voltage = readVoltage(0);
-    auto current = readLowPrecisionCurrent(0);
-
-    if (logger)
-    {
-        logger->debug("Voltage is: {}", voltage);
-        logger->debug("Current is: {}", current);
-    }
-
-    powerChannelOff(0);
-
-    if (logger)
-        logger->debug("----- Test Completed -----");
-}
-
 void PSUController::prepareChannelsForTesting(std::vector<int> channels_to_activate)
 {
     for (auto& channel : channels_to_activate)
@@ -101,6 +72,11 @@ void PSUController::powerChannelOff(int channel)
 {
     unsigned long value = 0;
     interface.setParameterInt(value, "Pw", channel);
+}
+
+float PSUController::getTestVoltage(int channel)
+{
+    return interface.getParameterFloat("VSet", channel);
 }
 
 void PSUController::setTestVoltage(int channel, float value)

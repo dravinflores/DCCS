@@ -4,6 +4,7 @@
 
 #include <fmt/core.h>
 #include <spdlog/spdlog.h>
+#include <spdlog/sinks/stdout_color_sinks.h>
 
 #ifdef VIRTUALIZE_CONNECTION
 #include "FakeHV/FakeHVLibrary.h"
@@ -15,16 +16,11 @@ using SpdlogLogger = std::shared_ptr<spdlog::logger>;
 
 static constexpr int default_value { 512 };
 
-HVInterface::HVInterface(bool logging, std::string path):
+HVInterface::HVInterface():
     handle { -1 },
     connected { false },
-    logger { nullptr }
-{
-    if (logging)
-    {
-        logger = spdlog::get("hvlib_logger");
-    }
-}
+    logger { spdlog::stdout_color_mt("HVInterface") }
+{}
 
 HVInterface::~HVInterface()
 {
@@ -217,9 +213,9 @@ static void setParameter(T val, std::string parameter, int channel, SpdlogLogger
     if (result != 0)
     {
     #ifdef VIRTUALIZE_CONNECTION
-        auto message = fmt::format("Unable to set parameter. {}", FakeHV_GetError(handle));
+        auto message = fmt::format("Unable to set parameter {}. {}", parameter, FakeHV_GetError(handle));
     #else
-        auto message = fmt::format("Unable to set parameter. Error: {}", CAENHV_GetError(handle));
+        auto message = fmt::format("Unable to set parameter {}. Error: {}", parameter, CAENHV_GetError(handle));
     #endif
 
         if (logger)
@@ -231,7 +227,7 @@ static void setParameter(T val, std::string parameter, int channel, SpdlogLogger
     }
     else
     {
-        auto message = fmt::format("Set Parameter Successful.");
+        auto message = fmt::format("Parameter {} was set successful.", parameter);
         
         if (logger)
         {
@@ -244,7 +240,7 @@ template <typename T>
 static T getParameter(T hint, std::string parameter, int channel, SpdlogLogger& logger, int handle)
 {
     unsigned short slot = 0;
-    unsigned short channelListSize;
+    unsigned short channelListSize = 1;
     unsigned short listOfChannelsToRead[] = { (unsigned short) channel };
     T listOfParameterValues[1];
 
@@ -271,9 +267,9 @@ static T getParameter(T hint, std::string parameter, int channel, SpdlogLogger& 
     if (result != 0)
     {
     #ifdef VIRTUALIZE_CONNECTION
-        auto message = fmt::format("Unable to get parameter. {}", FakeHV_GetError(handle));
+        auto message = fmt::format("Unable to get parameter {}. {}", parameter, FakeHV_GetError(handle));
     #else
-        auto message = fmt::format("Unable to get parameter. Error: {}", CAENHV_GetError(handle));
+        auto message = fmt::format("Unable to get parameter {}. Error: {}", parameter, CAENHV_GetError(handle));
     #endif
 
         if (logger)
@@ -285,7 +281,11 @@ static T getParameter(T hint, std::string parameter, int channel, SpdlogLogger& 
     }
     else
     {
-        auto message = fmt::format("Parameter successfully retrieved. Value: {}", (T) listOfParameterValues[0]);
+        auto message = fmt::format(
+            "Parameter {} successfully retrieved. Value: {}", 
+            parameter,
+            (T) listOfParameterValues[0]
+        );
         
         if (logger)
         {

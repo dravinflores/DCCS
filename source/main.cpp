@@ -52,6 +52,8 @@ int main(int argc, char** argv)
     psu_logger->flush_on(spdlog::level::debug);
     hvlib_logger->flush_on(spdlog::level::debug);
 
+    spdlog::set_level(spdlog::level::debug);
+
     QApplication app(argc, argv);
     MainWindow main_window;
     main_window.show();

@@ -22,7 +22,7 @@ struct PowerSupplyProperties
 class HVInterface 
 {
 public:
-    HVInterface(bool logging, std::string path);
+    HVInterface();
     ~HVInterface();
 
     HVInterface(const HVInterface&) = delete;

@@ -16,7 +16,7 @@ enum class RecoveryMethod
 class PSUController
 {
 public:
-    PSUController(bool logging, std::string path);
+    PSUController();
     ~PSUController();
 
     PSUController(const PSUController&) = delete;
@@ -28,12 +28,12 @@ public:
     void connect(msu_smdt::Port port);
     void disconnect();
 
-    void pretendTest();
-
     void prepareChannelsForTesting(std::vector<int> channels_to_activate);
 
     void powerChannelOn(int channel);
     void powerChannelOff(int channel);
+
+    float getTestVoltage(int channel);
 
     void setTestVoltage(int channel, float value);
     void setMaxVoltage(int channel, float value);

@@ -1,11 +1,11 @@
 #pragma once
 
-#include <iostream>
-#include <memory>
-
-#include <spdlog/spdlog.h>
-
+#include <QTableView>
 #include <QMainWindow>
+
+#include "TestInfo.hpp"
+#include "TestController.hpp"
+#include "CollectionModel.hpp"
 
 class MainWindow : public QMainWindow
 {
@@ -15,6 +15,13 @@ public:
     explicit MainWindow(QWidget* parent = nullptr);
     ~MainWindow();
 
+signals:
+    void startTest(std::vector<int> channels);
+    void stop();
+
 private:
-    std::shared_ptr<spdlog::logger> logger;
+    TestParameters parameters;
+    CollectionModel* collectionModel;
+    QTableView* tableView;
+    TestController* controller;
 };

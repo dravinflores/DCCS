@@ -19,6 +19,7 @@ elseif(APPLE)
 endif()
 
 set(SPDLOG_FMT_EXTERNAL ON)
+set(BUILD_SHARED_LIBS OFF)
 
 # Pull any needed libraries before adding subdirectories, so that each of the 
 # subdirectories can use the libraries.

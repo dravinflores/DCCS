@@ -1,8 +1,11 @@
 target_sources(
-	dccs
-	PRIVATE
-		MainWindow.cpp
-		MainWindow.hpp
-	PUBLIC
-		MainWindow.hpp
+    dccs
+    PRIVATE
+        MainWindow.cpp
+        MainWindow.hpp
+        CollectionModel.cpp
+        CollectionModel.hpp
+        TestController.cpp
+        TestController.hpp
+        TestInfo.hpp
 )

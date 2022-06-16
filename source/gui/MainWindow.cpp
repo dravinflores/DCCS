@@ -1,13 +1,36 @@
-#include <gui/MainWindow.hpp>
+// MainWindow.cpp
+
+#include <QWidget>
+#include <QVBoxLayout>
+#include <QHeaderView>
 
 #include <psu/Port.hpp>
 #include <psu/PSUController.hpp>
 
+#include "MainWindow.hpp"
+
 MainWindow::MainWindow(QWidget* parent):
-    QMainWindow(parent)
+    QMainWindow(parent),
+    parameters {
+        .secondsPerTube { 4 },
+        .tubesPerChannel { 16 },
+        .timeForTestingVoltage { 1 },
+    },
+    collectionModel { new CollectionModel(this, 0, parameters) },
+    tableView { new QTableView(this) },
+    controller { new TestController(this) }
 {
-    logger = spdlog::get("gui_logger");
-    logger->debug("MainWindow initialized");
+    resize(800, 600);
+    tableView->setModel(collectionModel);
+    tableView->horizontalHeader()->setSectionResizeMode(1, QHeaderView::Stretch);
+    tableView->setGridStyle(Qt::NoPen);
+    tableView->setAlternatingRowColors(true);
+
+    QWidget* centralWidget = new QWidget;
+    QVBoxLayout* layout = new QVBoxLayout;
+    layout->addWidget(tableView);
+    centralWidget->setLayout(layout);
+    setCentralWidget(centralWidget);
 
     msu_smdt::Port fake_com_port_connection {
         .port           = "COM4",
@@ -17,13 +40,28 @@ MainWindow::MainWindow(QWidget* parent):
         .parity         = "0",
         .lbusaddress    = "0"
     };
-        
-    PSUController psuobj(true, "");
-    psuobj.connect(fake_com_port_connection);
-    psuobj.pretendTest();
+
+    controller->setTestingParameters(parameters);
+    controller->connect(fake_com_port_connection);
+
+    connect(
+        controller, 
+        &TestController::completeChannelPolarityRequest, 
+        collectionModel, 
+        &CollectionModel::receiveChannelPolarity
+    );
+
+    connect(
+        controller,
+        &TestController::distributeTubeDataPacket,
+        collectionModel,
+        &CollectionModel::receiveTubeDataPacket
+    );
+
+    connect(this, &MainWindow::startTest, controller, &TestController::start);
+
+    emit startTest({0});
 }
 
 MainWindow::~MainWindow()
-{
-    logger->debug("MainWindow deinitialized");
-}
+{}
