@@ -2,6 +2,8 @@
 
 #include <fmt/core.h>
 
+#include <QColor>
+
 #include "CollectionModel.hpp"
 
 CollectionModel::CollectionModel(QObject* parent, int channel, TestParameters parameters):
@@ -26,7 +28,8 @@ CollectionModel::~CollectionModel()
 int CollectionModel::columnCount(const QModelIndex& parent) const
 {
     Q_UNUSED(parent);
-    return 5;
+    // return 5;
+    return 4;
 }
 
 QVariant CollectionModel::data(const QModelIndex& index, int role) const
@@ -44,6 +47,21 @@ QVariant CollectionModel::data(const QModelIndex& index, int role) const
     bool dataExists = true;
     bool addTestingIcon = internalData[row].isActive;
 
+    // We want to try coloring things
+    if (dataExists && role == Qt::DecorationRole)
+    {
+        if (col == 1 && addTestingIcon)
+        {
+            return QColor("orange");
+        }
+    }
+
+    if (dataExists && role == Qt::BackgroundRole)
+    {
+        if (col == 2 && internalData[row].current > 2.00)
+            return QColor("red");
+    }
+
     if (dataExists && role == Qt::DisplayRole)
     {
         switch (col)
@@ -58,11 +76,13 @@ QVariant CollectionModel::data(const QModelIndex& index, int role) const
             return QVariant();
         }
 
+    #ifdef COMMENT
         if (col == 1 && addTestingIcon)
         {
             auto str = "[ACTIVE] " + barcodes[row];
             return QString::fromStdString(str); 
         }
+    #endif // COMMENT
 
         if (col == 1)
         {

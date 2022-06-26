@@ -19,6 +19,15 @@
 
 #pragma once
 
+enum class TestError
+{
+    RESERVED,
+    ConnectionError,
+    FilePathError,
+    TestIsRunningError,
+    ReadError
+};
+
 class TestController : public QObject
 {
     Q_OBJECT
@@ -33,8 +42,6 @@ public:
     TestController& operator=(const TestController&) = delete;
     TestController& operator=(TestController&&) = delete;
 
-    bool connect(msu_smdt::Port port);
-    bool disconnect();
     bool checkConnection();
 
     void initializeTestingParameters();
@@ -44,6 +51,9 @@ public:
     void setTestingParameters(TestParameters parameters);
 
 public slots:
+    void connect(msu_smdt::Port port);
+    void disconnect();
+
     void start(std::vector<int> activeChannels);
     void stop();
 
@@ -54,7 +64,10 @@ public slots:
     void timeInfoReady(std::string elapsedTime, std::string remainingTime);
 
 signals:
+    void error(TestError error, std::string message);
+
     void stopTest();
+
     void executeTestInThread(
         QMutex* mutex, 
         PSUController* controller, 

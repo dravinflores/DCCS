@@ -2,6 +2,8 @@
 
 #include <cstdlib> // for rand()
 
+#include <map>
+
 #include <QMutexLocker>
 #include <QElapsedTimer>
 
@@ -21,7 +23,7 @@ TestController::TestController(QObject* parent):
 TestController::~TestController()
 {}
 
-bool TestController::connect(msu_smdt::Port port)
+void TestController::connect(msu_smdt::Port port)
 {
     try
     {
@@ -31,14 +33,13 @@ bool TestController::connect(msu_smdt::Port port)
     {
         logger->error("{}", e.what());
         connection = false;
-        return connection;
+        emit this->error(TestError::ConnectionError, "Cannot connect to the power supply.");
     }
 
     connection = true;
-    return connection;
 }
 
-bool TestController::disconnect()
+void TestController::disconnect()
 {
     try
     {
@@ -48,11 +49,10 @@ bool TestController::disconnect()
     {
         logger->error("{}", e.what());
         connection = true;
-        return connection;
+        emit this->error(TestError::ConnectionError, "Cannot disconnect to the power supply.");
     }
 
     connection = false;
-    return true;
 }
 
 bool TestController::checkConnection()
@@ -78,6 +78,10 @@ void TestController::initializeTestingParameters()
             controller->setPowerDownMethod(i, RecoveryMethod::Ramp);
         }
     }
+    else
+    {
+        emit this->error(TestError::FilePathError, "Invalid file path to configuration file");
+    }
 }
 
 ChannelStatus TestController::interpretChannelStatus(int channel)
@@ -99,9 +103,14 @@ void TestController::start(std::vector<int> activeChannels)
     logger->debug("Checking if a test is running");
 
     if (testThread.isRunning())
+    {
         logger->error("A Test is currently running. You should wait or stop the test");
+        // emit this->error(TestError::TestIsRunningError, "A Test is currently running. You should wait or stop the test");
+    }
     else
     {
+        // We need a way of clearing a test.
+
         testThread.start();
         emit executeTestInThread(
             mutex.get(), 
@@ -115,6 +124,7 @@ void TestController::start(std::vector<int> activeChannels)
 void TestController::stop()
 {
     emit stopTest();
+    testThread.quit();
 }
 
 void TestController::channelPolarityRequest(int channel)
@@ -130,6 +140,7 @@ void TestController::channelPolarityRequest(int channel)
     catch (const std::exception& e)
     {
         logger->error("{}", e.what());
+        emit this->error(TestError::ReadError, e.what());
     }
 
     emit completeChannelPolarityRequest(polarity);
@@ -167,6 +178,9 @@ void TestController::createThread()
     QObject::connect(test, &Test::distributeTubeDataPacket, this, &TestController::tubeDataPacketReady);
     QObject::connect(test, &Test::distributeChannelStatus, this, &TestController::channelStatusReady);
     QObject::connect(test, &Test::distributeTimeInfo, this, &TestController::timeInfoReady);
+
+    // We want to connect the stop signals.
+    QObject::connect(this, &TestController::stopTest, test, &Test::stop, Qt::DirectConnection);
 }
 
 static void packageTubeData(std::shared_ptr<spdlog::logger> logger, PSUController* controller, TubeData& data)
@@ -190,7 +204,7 @@ static void packageTubeData(std::shared_ptr<spdlog::logger> logger, PSUControlle
         }
         catch (...)
         {
-            logger->error("Error. Cannot obtain current");
+            logger->error("Error. Cannot obtain current precision");
         }
     }
     else
@@ -219,9 +233,17 @@ static void packageTubeData(std::shared_ptr<spdlog::logger> logger, PSUControlle
 }
 
 Test::Test():
-    stopFlag { false },
-    logger { spdlog::stdout_color_mt("Test") }
-{}
+    stopFlag { false }
+{
+    try
+    {
+        logger = spdlog::stdout_color_mt("Test");
+    }
+    catch (const spdlog::spdlog_ex& ex)
+    {
+        logger = spdlog::get("Test");
+    }
+}
 
 Test::~Test()
 {}
@@ -333,12 +355,12 @@ void Test::test(QMutex* mutex, PSUController* controller, std::vector<int> activ
 
             for (int k = 0; k < size; ++k)
             {
-                logger->debug("Collecting");
+                logger->debug("Collecting for channel {}", k);
                 auto elapsedTime = fmt::format("{}", timer.elapsed());
                 auto remainingTime = "";
                 ChannelStatus status;
                 
-                logger->debug("Emitting");
+                logger->debug("Collecting for channel {}", k);
                 packageTubeData(logger, controller, data[k]);
                 emit distributeTubeDataPacket(data[k]);
                 // emit distributeChannelStatus(status);
@@ -358,4 +380,6 @@ void Test::test(QMutex* mutex, PSUController* controller, std::vector<int> activ
 }
 
 void Test::stop()
-{}
+{
+    stopFlag = true;
+}

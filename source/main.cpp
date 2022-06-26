@@ -22,36 +22,6 @@
 
 int main(int argc, char** argv)
 {
-    // This is in relation to where the executable is ran.
-    std::string log_file = "log/log.txt";
-
-    // Here we will create our central sink.
-    auto central_sink = std::make_shared<spdlog::sinks::basic_file_sink_mt>(log_file);
-
-    // Now we can create the separate loggers.
-    auto main_logger = std::make_shared<spdlog::logger>("main_logger", central_sink);
-    auto gui_logger = std::make_shared<spdlog::logger>("gui_logger", central_sink);
-    auto psu_logger = std::make_shared<spdlog::logger>("psu_logger", central_sink);
-    auto hvlib_logger = std::make_shared<spdlog::logger>("hvlib_logger", central_sink);
-
-    // Register these loggers.
-    spdlog::register_logger(main_logger);
-    spdlog::register_logger(gui_logger);
-    spdlog::register_logger(psu_logger);
-    spdlog::register_logger(hvlib_logger);
-
-    // Adjust the level.
-    main_logger->set_level(spdlog::level::debug);
-    gui_logger->set_level(spdlog::level::debug);
-    psu_logger->set_level(spdlog::level::debug);
-    hvlib_logger->set_level(spdlog::level::debug);
-
-    // We want to immediately write every debug message;
-    main_logger->flush_on(spdlog::level::debug);
-    gui_logger->flush_on(spdlog::level::debug);
-    psu_logger->flush_on(spdlog::level::debug);
-    hvlib_logger->flush_on(spdlog::level::debug);
-
     spdlog::set_level(spdlog::level::debug);
 
     QApplication app(argc, argv);
