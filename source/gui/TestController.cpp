@@ -27,6 +27,7 @@ void TestController::connect(msu_smdt::Port port)
 {
     try
     {
+        logger->debug("Connecting");
         controller->connect(port);
     }
     catch(const std::exception& e)

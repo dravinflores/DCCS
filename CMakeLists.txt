@@ -9,7 +9,7 @@ set(CMAKE_CXX_EXTENSIONS        OFF)
 set(C_STANDARD                  11)
 
 # A few variables that we can set based on how we want to compile everything.
-option(VIRTUALIZE_HVLIB "Virtualize the connection to the CAEN HV Wrapper Library (HVLIB)" ON)
+option(VIRTUALIZE_HVLIB "Virtualize the connection to the CAEN HV Wrapper Library (HVLIB)" OFF)
 option(TEST_FAKEHV "Check testing of the FakeHV Library" OFF)
 
 if (MSVC)

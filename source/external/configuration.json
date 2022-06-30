@@ -19,7 +19,7 @@
     },
     
     "test": {
-        "seconds_per_tube": 10,
+        "seconds_per_tube": 1,
         "tubes_per_channel": 16,
         "time_for_testing_voltage": 10,
         "normal": {

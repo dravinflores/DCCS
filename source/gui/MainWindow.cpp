@@ -2,6 +2,7 @@
 
 #include <iostream>
 #include <fstream>
+#include <utility>
 
 #include <string_view>
 
@@ -322,13 +323,23 @@ void MainWindow::readConfigurationFile()
 
     try
     {
-        this->PSUPort = {
-            config["port"]["psu"]["port"].get<std::string>(),
-            config["port"]["psu"]["baud_rate"].get<std::string>(),
-            config["port"]["psu"]["stop_bit"].get<std::string>(),
-            config["port"]["psu"]["parity"].get<std::string>(),
-            config["port"]["psu"]["lbusaddress"].get<std::string>()
+        auto port = config["port"]["psu"]["port"].get<std::string>();
+        auto baud_rate = config["port"]["psu"]["baud_rate"].get<std::string>();
+        auto data_bit = config["port"]["psu"]["data_bit"].get<std::string>();
+        auto stop_bit = config["port"]["psu"]["stop_bit"].get<std::string>();
+        auto parity = config["port"]["psu"]["parity"].get<std::string>();
+        auto lbusaddress = config["port"]["psu"]["lbusaddress"].get<std::string>();
+
+        msu_smdt::Port arg_port = {
+            port,
+            baud_rate,
+            data_bit,
+            stop_bit,
+            parity,
+            lbusaddress
         };
+
+        this->PSUPort = std::move(arg_port);
     }
     catch (std::exception & ex)
     {
@@ -337,12 +348,20 @@ void MainWindow::readConfigurationFile()
 
     try
     {
+        auto port = config["port"]["hw"]["port"].get<std::string>();
+        auto baud_rate = config["port"]["hw"]["baud_rate"].get<std::string>();
+        auto data_bit = config["port"]["hw"]["data_bit"].get<std::string>();
+        auto stop_bit = config["port"]["hw"]["stop_bit"].get<std::string>();
+        auto parity = config["port"]["hw"]["parity"].get<std::string>();
+        auto lbusaddress = config["port"]["hw"]["lbusaddress"].get<std::string>();
+
         this->HWPort = {
-            config["port"]["hw"]["port"].get<std::string>(),
-            config["port"]["hw"]["baud_rate"].get<std::string>(),
-            config["port"]["hw"]["stop_bit"].get<std::string>(),
-            config["port"]["hw"]["parity"].get<std::string>(),
-            config["port"]["hw"]["lbusaddress"].get<std::string>()
+            port,
+            baud_rate,
+            data_bit,
+            stop_bit,
+            parity,
+            lbusaddress
         };
     }
     catch (std::exception& ex)
@@ -352,10 +371,14 @@ void MainWindow::readConfigurationFile()
 
     try
     {
+        auto seconds_per_tube = config["test"]["seconds_per_tube"].get<int>();
+        auto tubes_per_channel = config["test"]["tubes_per_channel"].get<int>();
+        auto time_for_testing_voltage = config["test"]["time_for_testing_voltage"].get<int>();
+
         this->parameters = {
-            config["test"]["seconds_per_tube"].get<int>(),
-            config["test"]["tubes_per_channel"].get<int>(),
-            config["test"]["time_for_testing_voltage"].get<int>()
+            seconds_per_tube,
+            tubes_per_channel,
+            time_for_testing_voltage
         };
 
         controller->setTestingParameters(parameters);
@@ -369,30 +392,48 @@ void MainWindow::readConfigurationFile()
     TestConfiguration reverseConfig;
     try
     {
+        auto test_voltage = config["test"]["normal"]["test_voltage"].get<int>();
+        auto current_limit = config["test"]["normal"]["current_limit"].get<int>();
+        auto max_voltage = config["test"]["normal"]["max_voltage"].get<int>();
+        auto ramp_up_rate = config["test"]["normal"]["ramp_up_rate"].get<int>();
+        auto ramp_down_rate = config["test"]["normal"]["ramp_down_rate"].get<int>();
+        auto over_current_limit = config["test"]["normal"]["over_current_limit"].get<int>();
+        auto power_down_method = config["test"]["normal"]["power_down_method"].get<int>();
+
         normalConfig = {
-            config["test"]["normal"]["test_voltage"].get<int>(),
-            config["test"]["normal"]["current_limit"].get<int>(),
-            config["test"]["normal"]["max_voltage"].get<int>(),
-            config["test"]["normal"]["ramp_up_rate"].get<int>(),
-            config["test"]["normal"]["ramp_down_rate"].get<int>(),
-            config["test"]["normal"]["over_current_limit"].get<int>(),
-            config["test"]["normal"]["power_down_method"].get<int>()
+            test_voltage,
+            current_limit,
+            max_voltage,
+            ramp_up_rate,
+            ramp_down_rate,
+            over_current_limit,
+            power_down_method,
         };
 
+        test_voltage = config["test"]["reverse"]["test_voltage"].get<int>();
+        current_limit = config["test"]["reverse"]["current_limit"].get<int>();
+        max_voltage = config["test"]["reverse"]["max_voltage"].get<int>();
+        ramp_up_rate = config["test"]["reverse"]["ramp_up_rate"].get<int>();
+        ramp_down_rate = config["test"]["reverse"]["ramp_down_rate"].get<int>();
+        over_current_limit = config["test"]["reverse"]["over_current_limit"].get<int>();
+        power_down_method = config["test"]["reverse"]["power_down_method"].get<int>();
+
         reverseConfig = {
-            config["test"]["reverse"]["test_voltage"].get<int>(),
-            config["test"]["reverse"]["current_limit"].get<int>(),
-            config["test"]["reverse"]["max_voltage"].get<int>(),
-            config["test"]["reverse"]["ramp_up_rate"].get<int>(),
-            config["test"]["reverse"]["ramp_down_rate"].get<int>(),
-            config["test"]["reverse"]["over_current_limit"].get<int>(),
-            config["test"]["reverse"]["power_down_method"].get<int>()
+            test_voltage,
+            current_limit,
+            max_voltage,
+            ramp_up_rate,
+            ramp_down_rate,
+            over_current_limit,
+            power_down_method,
         };
     }
     catch (std::exception& ex)
     {
         logger->error("Cannot obtain test initial conditions from file");
     }
+
+    logger->debug("Attempting to connect");
 
     emit connect(PSUPort);
 
