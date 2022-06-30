@@ -54,15 +54,24 @@ public:
 signals:
     void connect(msu_smdt::Port port);
     void startTest(std::vector<int> channels);
+    void distributeTestConfiguration(TestConfiguration config);
+    void fillFakeBarcodes();
 
 private slots:
+    void hasConnected();
+    void hasDisconnected();
+
     void start();
     void getPortInfoPSU();
     void openHelp();
     void openGitHub();
     void about();
 
-    void update();
+    void updateTime(std::string elapsedTime, std::string remainingTime);
+
+    void alert(std::string message);
+
+    void readConfigurationFile();
 
 private:
     msu_smdt::Port PSUPort;
@@ -104,6 +113,8 @@ private:
     QAction* openHelpAct;
     QAction* openGitHubAct;
     QAction* aboutAct;
+
+    QAction* createFakes;
 
     std::shared_ptr<spdlog::logger> logger;
 };

@@ -13,6 +13,7 @@
  **********************************************************************************************************************/
 
 #include <QApplication>
+#include <QStyleFactory>
 #include <QDir>
 
 #include <spdlog/spdlog.h>
@@ -23,8 +24,12 @@
 int main(int argc, char** argv)
 {
     spdlog::set_level(spdlog::level::debug);
+    spdlog::set_pattern("[%Y-%m-%d %H:%M:%S] [%=16n] %^[%=8l]%$ %v");
+
 
     QApplication app(argc, argv);
+    app.setStyle(QStyleFactory::create("Fusion"));
+
     MainWindow main_window;
     main_window.show();
 

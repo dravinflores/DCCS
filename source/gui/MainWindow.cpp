@@ -1,21 +1,39 @@
 // MainWindow.cpp
 
+#include <iostream>
+#include <fstream>
+
+#include <string_view>
+
+#include <QTime>
 #include <QLabel>
 #include <QFrame>
 #include <QWidget>
 #include <QMenuBar>
+#include <QFileDialog>
 #include <QFormLayout>
 #include <QGridLayout>
 #include <QVBoxLayout>
 #include <QHBoxLayout>
 #include <QHeaderView>
 
+#include <QString>
+#include <QStringList>
+#include <QMessageBox>
+#include <QInputDialog>
+
 #include <spdlog/sinks/stdout_color_sinks.h>
+
+#include <nlohmann/json.hpp>
 
 #include <psu/Port.hpp>
 #include <psu/PSUController.hpp>
 
 #include "MainWindow.hpp"
+
+using json = nlohmann::json;
+
+static void createChannelView();
 
 MainWindow::MainWindow(QWidget* parent):
     QMainWindow(parent),
@@ -52,10 +70,11 @@ MainWindow::MainWindow(QWidget* parent):
     openHelpAct { new QAction("Open Help", this) },
     openGitHubAct { new QAction("Open GitHub", this) },
     aboutAct { new QAction("About", this) },
+    createFakes { new QAction("(DEBUG) Create Fakes", this) },
     logger { spdlog::stdout_color_mt("MainWindow") }
 {
     // Will most likely remove this.
-    // resize(1920, 1080);
+    resize(1280, 720);
     
     // We need to create the central layout.
     QWidget* centralWidget = new QWidget(this);
@@ -77,7 +96,8 @@ MainWindow::MainWindow(QWidget* parent):
     CH0DataBox->setTitle("CH0 - Data");
 
     QVBoxLayout* CH0StatusBoxLayout = new QVBoxLayout;
-    QLabel* CH0StatusLabel = new QLabel(CH0Status);
+    // QLabel* CH0StatusLabel = new QLabel(CH0Status);
+    CH0StatusBoxLayout->addWidget(CH0Status);
     CH0StatusBox->setLayout(CH0StatusBoxLayout);
     CH0StatusBox->setTitle("CH0 - Status");
 
@@ -93,7 +113,8 @@ MainWindow::MainWindow(QWidget* parent):
     CH1DataBox->setTitle("CH1 - Data");
 
     QVBoxLayout* CH1StatusBoxLayout = new QVBoxLayout;
-    QLabel* CH1StatusLabel = new QLabel(CH1Status);
+    // QLabel* CH1StatusLabel = new QLabel(CH1Status);
+    CH1StatusBoxLayout->addWidget(CH1Status);
     CH1StatusBox->setLayout(CH1StatusBoxLayout);
     CH1StatusBox->setTitle("CH1 - Status");
 
@@ -124,7 +145,9 @@ MainWindow::MainWindow(QWidget* parent):
     // Now we'll create the Test Status Frame.
     QFrame* testFrame = new QFrame;
     QBoxLayout* testFrameLayout = new QHBoxLayout;
+    testFrameLayout->addStretch(64);
     testFrameLayout->addWidget(testStatusBox, Qt::AlignCenter);
+    testFrameLayout->addStretch(64);
     testFrame->setLayout(testFrameLayout);
 
     // We can now connect the two frames together.
@@ -148,13 +171,16 @@ MainWindow::MainWindow(QWidget* parent):
     helpMenu->addAction(openHelpAct);
     helpMenu->addAction(openGitHubAct);
     helpMenu->addAction(aboutAct);
+    helpMenu->addAction(createFakes);
 
     // Now we're ready to connect all the signals.
-    QObject::connect(connectAct, &QAction::triggered, this, &MainWindow::getPortInfoPSU);
+    // QObject::connect(connectAct, &QAction::triggered, this, &MainWindow::getPortInfoPSU);
+    QObject::connect(connectAct, &QAction::triggered, this, &MainWindow::readConfigurationFile);
     QObject::connect(this, &MainWindow::connect, controller, &TestController::connect);
     QObject::connect(disconnectAct, &QAction::triggered, controller, &TestController::disconnect);
     QObject::connect(startAct, &QAction::triggered, this, &MainWindow::start);
     QObject::connect(stopAct, &QAction::triggered, controller, &TestController::stop);
+    QObject::connect(createFakes, &QAction::triggered, this, &MainWindow::fillFakeBarcodes);
 
     QObject::connect(
         controller, 
@@ -183,16 +209,44 @@ MainWindow::MainWindow(QWidget* parent):
         CH1Model, 
         &CollectionModel::receiveTubeDataPacket
     );
+
+    QObject::connect(controller, &TestController::distributeTimeInfo, this, &MainWindow::updateTime);
 
     QObject::connect(this, &MainWindow::startTest, controller, &TestController::start);
+
+    QObject::connect(
+        this, 
+        &MainWindow::distributeTestConfiguration, 
+        controller, 
+        &TestController::initializeTestConfiguration
+    );
+
+    QObject::connect(this, &MainWindow::fillFakeBarcodes, CH0Model, &CollectionModel::createFakeBarcodes);
+    QObject::connect(this, &MainWindow::fillFakeBarcodes, CH1Model, &CollectionModel::createFakeBarcodes);
+
+    QObject::connect(controller, &TestController::connected, this, &MainWindow::hasConnected);
+    QObject::connect(controller, &TestController::disconnected, this, &MainWindow::hasDisconnected);
 }
 
 MainWindow::~MainWindow()
 {}
 
+void MainWindow::hasConnected()
+{
+    this->connectionStatus->setText("CONNECTED");
+}
+
+void MainWindow::hasDisconnected()
+{
+    this->connectionStatus->setText("DISCONNECTED");
+}
+
 void MainWindow::start()
 {
     logger->debug("Getting to emit startTest");
+    this->timeStarted->setText(QTime::currentTime().toString());
+    this->timeElapsed->setText("N/A");
+    this->timeRemaining->setText("N/A");
     emit startTest({0, 1});
 }
 
@@ -207,7 +261,10 @@ void MainWindow::getPortInfoPSU()
         "0"
     };
 
-    emit connect(PSUPort);
+    auto filename = QFileDialog::getOpenFileName(this, "Configuration File");
+    logger->debug(filename.toStdString());
+
+    
 }
 
 void MainWindow::openHelp()
@@ -219,7 +276,137 @@ void MainWindow::openGitHub()
 void MainWindow::about()
 {}
 
-void MainWindow::update()
+void MainWindow::updateTime(std::string elapsedTime, std::string remainingTime)
 {
-    
+    this->timeElapsed->setText(elapsedTime.c_str());
+    this->timeRemaining->setText(remainingTime.c_str());
+}
+
+void MainWindow::alert(std::string message)
+{
+    QMessageBox msg(this);
+    msg.setText(message.c_str());
+    msg.exec();
+}
+
+void MainWindow::readConfigurationFile()
+{
+    auto filename_qstr = QFileDialog::getOpenFileName(this, "Configuration File");
+    auto file = filename_qstr.toStdString();
+
+    bool ok = false;
+    QStringList testTypesAvailable;
+    testTypesAvailable << "Normal" << "Reverse";
+    QString item = QInputDialog::getItem(
+        this, 
+        "Get Test Type", 
+        "Test Type:", 
+        testTypesAvailable, 
+        0, 
+        false, 
+        &ok, 
+        Qt::MSWindowsFixedSizeDialogHint
+    );
+
+    json config;
+    try
+    {
+        std::ifstream in_file(file);
+        in_file >> config;
+    }
+    catch(const std::exception& e)
+    {
+        logger->error("Unable to parse file. Returning");
+        return;
+    }
+
+    try
+    {
+        this->PSUPort = {
+            config["port"]["psu"]["port"].get<std::string>(),
+            config["port"]["psu"]["baud_rate"].get<std::string>(),
+            config["port"]["psu"]["stop_bit"].get<std::string>(),
+            config["port"]["psu"]["parity"].get<std::string>(),
+            config["port"]["psu"]["lbusaddress"].get<std::string>()
+        };
+    }
+    catch (std::exception & ex)
+    {
+        logger->error("Cannot obtain PSU port information");
+    }
+
+    try
+    {
+        this->HWPort = {
+            config["port"]["hw"]["port"].get<std::string>(),
+            config["port"]["hw"]["baud_rate"].get<std::string>(),
+            config["port"]["hw"]["stop_bit"].get<std::string>(),
+            config["port"]["hw"]["parity"].get<std::string>(),
+            config["port"]["hw"]["lbusaddress"].get<std::string>()
+        };
+    }
+    catch (std::exception& ex)
+    {
+        logger->error("Cannot obtain HW port information");
+    }
+
+    try
+    {
+        this->parameters = {
+            config["test"]["seconds_per_tube"].get<int>(),
+            config["test"]["tubes_per_channel"].get<int>(),
+            config["test"]["time_for_testing_voltage"].get<int>()
+        };
+
+        controller->setTestingParameters(parameters);
+    }
+    catch (std::exception& ex)
+    {
+        logger->error("Cannot obtain test parameters from file");
+    }
+
+    TestConfiguration normalConfig;
+    TestConfiguration reverseConfig;
+    try
+    {
+        normalConfig = {
+            config["test"]["normal"]["test_voltage"].get<int>(),
+            config["test"]["normal"]["current_limit"].get<int>(),
+            config["test"]["normal"]["max_voltage"].get<int>(),
+            config["test"]["normal"]["ramp_up_rate"].get<int>(),
+            config["test"]["normal"]["ramp_down_rate"].get<int>(),
+            config["test"]["normal"]["over_current_limit"].get<int>(),
+            config["test"]["normal"]["power_down_method"].get<int>()
+        };
+
+        reverseConfig = {
+            config["test"]["reverse"]["test_voltage"].get<int>(),
+            config["test"]["reverse"]["current_limit"].get<int>(),
+            config["test"]["reverse"]["max_voltage"].get<int>(),
+            config["test"]["reverse"]["ramp_up_rate"].get<int>(),
+            config["test"]["reverse"]["ramp_down_rate"].get<int>(),
+            config["test"]["reverse"]["over_current_limit"].get<int>(),
+            config["test"]["reverse"]["power_down_method"].get<int>()
+        };
+    }
+    catch (std::exception& ex)
+    {
+        logger->error("Cannot obtain test initial conditions from file");
+    }
+
+    emit connect(PSUPort);
+
+    if (ok && !item.isEmpty())
+    {
+        if (item == "Normal")
+        {
+            logger->debug("Passing out normal config");
+            emit distributeTestConfiguration(normalConfig);
+        }
+        else
+        {
+            logger->debug("Passing out reverse config");
+            emit distributeTestConfiguration(reverseConfig);
+        }
+    }
 }

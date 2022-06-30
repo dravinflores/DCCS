@@ -35,7 +35,12 @@ FetchContent_Declare(
     GIT_TAG v1.x
 )
 
-FetchContent_MakeAvailable(fmt spdlog)
+FetchContent_Declare(
+    json
+    URL https://github.com/nlohmann/json/releases/download/v3.10.5/json.tar.xz
+)
+
+FetchContent_MakeAvailable(fmt spdlog json)
 
 find_package(
     Qt6
@@ -62,6 +67,7 @@ target_link_libraries(
         PSUController
         fmt::fmt
         spdlog::spdlog
+        nlohmann_json::nlohmann_json
         Qt::Gui
         Qt::Core
         Qt::Widgets

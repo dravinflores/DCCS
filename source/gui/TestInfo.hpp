@@ -28,3 +28,14 @@ struct TestParameters
     int tubesPerChannel { 32 };
     int timeForTestingVoltage { 1 };
 };
+
+struct TestConfiguration
+{
+    int testVoltage { 0 };
+    int currentLimit { 0 };
+    int maxVoltage { 0 };
+    int rampUpRate { 0 };
+    int rampDownRate { 0 };
+    int overCurrentLimit { 0 };
+    int powerDownMethod { 0 };
+};

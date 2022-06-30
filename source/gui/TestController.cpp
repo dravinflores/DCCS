@@ -33,10 +33,11 @@ void TestController::connect(msu_smdt::Port port)
     {
         logger->error("{}", e.what());
         connection = false;
-        emit this->error(TestError::ConnectionError, "Cannot connect to the power supply.");
+        return;
     }
 
     connection = true;
+    emit connected();
 }
 
 void TestController::disconnect()
@@ -49,10 +50,11 @@ void TestController::disconnect()
     {
         logger->error("{}", e.what());
         connection = true;
-        emit this->error(TestError::ConnectionError, "Cannot disconnect to the power supply.");
+        return;
     }
 
     connection = false;
+    emit disconnected();
 }
 
 bool TestController::checkConnection()
@@ -60,27 +62,32 @@ bool TestController::checkConnection()
     return connection;
 }
 
-void TestController::initializeTestingParameters()
+void TestController::initializeTestConfiguration(TestConfiguration config)
 {
-    bool pathIsCorrect = false;
+#ifdef COMMENT
+    logger->debug("testVoltage received: {}", config.testVoltage);
+    logger->debug("currentLimit received: {}", config.currentLimit);
+    logger->debug("maxVoltage received: {}", config.maxVoltage);
+    logger->debug("rampUpRate received: {}", config.rampUpRate);
+    logger->debug("rampDownRate received: {}", config.rampDownRate);
+    logger->debug("overCurrentLimit received: {}", config.overCurrentLimit);
+#endif // COMMENT
 
-    if (!pathIsCorrect)
+    // We'll just operate on all channels at once.
+    for (int i = 0; i < 4; ++i)
     {
-        for (int i = 0; i < 4; ++i)
-        {
-            // Set defaults.
-            controller->setTestVoltage(i, 5.00f);
-            controller->setCurrentLimit(i, 2.00f);
-            controller->setMaxVoltage(i, 10.00f);
-            controller->setRampUpRate(i, 1.00f);
-            controller->setRampDownRate(i, 1.00f);
-            controller->setOverCurrentTimeLimit(i, 1000.00f);
+        // Set defaults.
+        controller->setTestVoltage(i, config.testVoltage);
+        controller->setCurrentLimit(i, config.currentLimit);
+        controller->setMaxVoltage(i, config.maxVoltage);
+        controller->setRampUpRate(i, config.rampUpRate);
+        controller->setRampDownRate(i, config.rampDownRate);
+        controller->setOverCurrentTimeLimit(i, config.overCurrentLimit);
+
+        if (config.powerDownMethod)
             controller->setPowerDownMethod(i, RecoveryMethod::Ramp);
-        }
-    }
-    else
-    {
-        emit this->error(TestError::FilePathError, "Invalid file path to configuration file");
+        else
+            controller->setPowerDownMethod(i, RecoveryMethod::Kill);
     }
 }
 
@@ -279,20 +286,27 @@ void Test::test(QMutex* mutex, PSUController* controller, std::vector<int> activ
     int size = activeChannels.size();
     std::vector<TubeData> data(size);
 
+#define OFFSET
 #ifdef OFFSET
     // We can now find out the currentOffset.
-    float currentOffset[size];
+    std::vector<float> currentOffset(size);
+    // float currentOffset[size];
 
     for (int k = 0; k < size; ++k)
     {
+        logger->debug("Performing offset calculation for channel {}", activeChannels[k]);
+
         if (stopFlag)
-            break
+            break;
 
         float testVoltage = controller->getTestVoltage(activeChannels[k]);
         controller->setTestVoltage(activeChannels[k], 0.00f);
         controller->powerChannelOn(k);
-        QThread::sleep(10);
+        QThread::sleep(parameters.timeForTestingVoltage);
         currentOffset[k] = controller->readLowPrecisionCurrent(activeChannels[k]);
+
+        logger->debug("Offset for Channel {}: {}", activeChannels[k], currentOffset[k]);
+
         controller->setTestVoltage(activeChannels[k], testVoltage);
     }
 #else
@@ -320,6 +334,8 @@ void Test::test(QMutex* mutex, PSUController* controller, std::vector<int> activ
         }
     }
 #endif // COMMENT
+
+    int minutes = 0;
 
     // Each tube has a uniform number of tubes in a channel. 
     // Each tube is indexed in the channel.
@@ -356,15 +372,18 @@ void Test::test(QMutex* mutex, PSUController* controller, std::vector<int> activ
             for (int k = 0; k < size; ++k)
             {
                 logger->debug("Collecting for channel {}", k);
-                auto elapsedTime = fmt::format("{}", timer.elapsed());
-                auto remainingTime = "";
+
+                int s = timer.elapsed() / 1000;
+                auto elapsedTime = fmt::format("{} s", s);
+                
+                auto remainingTime = fmt::format("{} s", (parameters.tubesPerChannel - i) * parameters.secondsPerTube);
                 ChannelStatus status;
                 
                 logger->debug("Collecting for channel {}", k);
                 packageTubeData(logger, controller, data[k]);
                 emit distributeTubeDataPacket(data[k]);
                 // emit distributeChannelStatus(status);
-                // emit distributeTimeInfo(elapsedTime, remainingTime);
+                emit distributeTimeInfo(elapsedTime, remainingTime);
             }
             QThread::sleep(1);
         }

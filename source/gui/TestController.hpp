@@ -44,7 +44,7 @@ public:
 
     bool checkConnection();
 
-    void initializeTestingParameters();
+    void initializeTestConfiguration(TestConfiguration config);
 
     ChannelStatus interpretChannelStatus(int channel);
 
@@ -64,6 +64,9 @@ public slots:
     void timeInfoReady(std::string elapsedTime, std::string remainingTime);
 
 signals:
+    void connected();
+    void disconnected();
+
     void error(TestError error, std::string message);
 
     void stopTest();

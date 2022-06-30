@@ -28,6 +28,7 @@ public:
 public slots:
     void receiveChannelPolarity(int polarity);
     void receiveTubeDataPacket(TubeData data);
+    void createFakeBarcodes();
 
 private:
     int channel;

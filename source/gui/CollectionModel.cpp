@@ -13,14 +13,7 @@ CollectionModel::CollectionModel(QObject* parent, int channel, TestParameters pa
     parameters { parameters },
     internalData(parameters.tubesPerChannel),
     barcodes(parameters.tubesPerChannel, "")
-{
-#ifndef BLANK_BARCODES
-    for (int i = 0; i < barcodes.size(); ++i)
-    {
-        barcodes[i] = fmt::format("MSU0012{}", i);
-    }
-#endif
-}
+{}
 
 CollectionModel::~CollectionModel()
 {}
@@ -44,8 +37,13 @@ QVariant CollectionModel::data(const QModelIndex& index, int role) const
     int row = index.row();
 
     // We need to check if the row exists. To be implemented later.
-    bool dataExists = true;
+    bool dataExists = barcodes[row] != "";
     bool addTestingIcon = internalData[row].isActive;
+
+    if (col == 0 && role == Qt::DisplayRole)
+    {
+        return row;
+    }
 
     // We want to try coloring things
     if (dataExists && role == Qt::DecorationRole)
@@ -66,8 +64,6 @@ QVariant CollectionModel::data(const QModelIndex& index, int role) const
     {
         switch (col)
         {
-        case 0:
-            return row;
         case 2:
             return internalData[row].current;
         case 3:
@@ -153,12 +149,26 @@ void CollectionModel::receiveChannelPolarity(int polarity)
 
 void CollectionModel::receiveTubeDataPacket(TubeData data)
 {
+    emit layoutAboutToBeChanged();
+
     if (data.channel == channel)
     {
         internalData[data.index] = data;
     }
 
-    QModelIndex topLeft = index(data.index, 2);
-    QModelIndex bottomRight = index(parameters.tubesPerChannel, 3);
+    // QModelIndex topLeft = index(data.index, 2);
+    // QModelIndex bottomRight = index(parameters.tubesPerChannel, 3);
+    emit layoutChanged();
+}
+
+void CollectionModel::createFakeBarcodes()
+{
+    emit layoutAboutToBeChanged();
+
+    for (int i = 0; i < barcodes.size(); ++i)
+    {
+        barcodes[i] = fmt::format("MSU0012{}", i);
+    }
+
     emit layoutChanged();
 }

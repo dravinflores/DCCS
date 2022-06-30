@@ -1,0 +1,51 @@
+{
+    "port": {
+        "psu": {
+            "port": "COM4",
+            "baud_rate": "9600",
+            "data_bit": "0",
+            "stop_bit": "0",
+            "parity": "0",
+            "lbusaddress": "0"
+        },
+        "hw": {
+            "port": "COM2",
+            "baud_rate": "9600",
+            "data_bit": "0",
+            "stop_bit": "0",
+            "parity": "0",
+            "lbusaddress": "0"
+        }
+    },
+    
+    "test": {
+        "seconds_per_tube": 10,
+        "tubes_per_channel": 16,
+        "time_for_testing_voltage": 10,
+        "normal": {
+            "test_voltage": 3000,
+            "current_limit": 2,
+            "max_voltage": 4000,
+            "ramp_up_rate": 1000,
+            "ramp_down_rate": 1000,
+            "over_current_limit": 1000,
+            "power_down_method": 1
+        },
+        "reverse": {
+            "test_voltage": 3000,
+            "current_limit": 2,
+            "max_voltage": 4000,
+            "ramp_up_rate": 1000,
+            "ramp_down_rate": 1000,
+            "over_current_limit": 1000,
+            "power_down_method": 1
+        }
+    },
+    
+    "path": {
+        "log": "",
+        "csv": ""
+    },
+    
+    "debug": {}
+}

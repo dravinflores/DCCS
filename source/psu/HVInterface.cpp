@@ -56,7 +56,7 @@ static PowerSupplyProperties get_crate_map(SpdlogLogger& logger, int handle)
         &listOfFirmwarePrefixesIndexedBySlot
     );
 #else
-    CAENHVRESULT result = CAENHV_GetCrateMap(
+    auto result = (int) CAENHV_GetCrateMap(
         handle,
         &numberOfSlots,
         &listOfChannelsIndexedBySlot,
@@ -200,7 +200,7 @@ static void setParameter(T val, std::string parameter, int channel, SpdlogLogger
         (void*) &newParameterValue
     );
 #else
-    CAENHVRESULT result = CAENHV_SetChParam(
+    auto result = (int) CAENHV_SetChParam(
         handle,
         slot,
         (const char*) parameter.c_str(),
@@ -254,7 +254,7 @@ static T getParameter(T hint, std::string parameter, int channel, SpdlogLogger& 
         (void*) listOfParameterValues
     );
 #else
-    int result = CAENHV_GetChParam(
+    auto result = (int) CAENHV_GetChParam(
         handle,
         slot,
         (const char*) parameter.c_str(),
@@ -298,7 +298,12 @@ static T getParameter(T hint, std::string parameter, int channel, SpdlogLogger& 
 
 void HVInterface::connect(msu_smdt::Port port)
 {
+#ifdef VIRTUALIZE_CONNECTION
     int system = 6;
+#else
+    auto system = N1470;
+#endif 
+
     int linkType = 5;
     auto connectionString = fmt::format(
         "{}_{}_{}_{}_{}_{}", 
@@ -324,7 +329,7 @@ void HVInterface::connect(msu_smdt::Port port)
         &handle
     );
 #else
-    int result = CAENHV_InitSystem(
+    auto result = (int) CAENHV_InitSystem(
         system,
         linkType,
         (void*) connectionString.c_str(),
@@ -367,7 +372,7 @@ void HVInterface::disconnect()
 #ifdef VIRTUALIZE_CONNECTION
     int result = FakeHV_DeinitializeSystem(this->handle);
 #else
-    int result = CAENHV_DeinitSystem(this->handle);
+    auto result = (int) CAENHV_DeinitSystem(this->handle);
 #endif
 
     if (result != 0)
