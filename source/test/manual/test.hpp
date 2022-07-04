@@ -8,4 +8,8 @@
 #include <psu/Port.hpp>
 #include <psu/HVInterface.hpp>
 
+#include <psu/PSUController.hpp>
+
 void TestControlOfPowerSupply();
+
+void TestPSUController();

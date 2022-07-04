@@ -1,11 +1,7 @@
 #include "test.hpp"
 
-void TestControlOfPowerSupply()
-{
-    auto logger = spdlog::stdout_color_mt("Main");
-
-    HVInterface interface;
-    msu_smdt::Port port = {
+static auto logger = spdlog::stdout_color_mt("Main");
+static msu_smdt::Port port = {
         .port = "COM3",
         .baud_rate = "9600",
         .data_bit = "8",
@@ -13,6 +9,11 @@ void TestControlOfPowerSupply()
         .parity = "0",
         .lbusaddress = "0"
     };
+
+void TestControlOfPowerSupply()
+{
+    HVInterface interface;
+    
     interface.connectToPSU(port);
 
     interface.clearAlarm();
@@ -44,4 +45,41 @@ void TestControlOfPowerSupply()
     }
 
     interface.setParametersLong("Pw", 0, {0, 1});
+}
+
+void TestPSUController()
+{
+    PSUController controller;
+    controller.connectToPSU(port);
+
+    std::vector<unsigned short> channels { 0, 1 };
+
+    controller.setTestVoltages(channels, 15.00f);
+    controller.setTestCurrents(channels, 2.000f);
+
+    controller.setMaxVoltages(channels, 100.00f);
+    controller.setOverCurrentLimits(channels, 1000.00f);
+
+    controller.setRampUpRate(channels, 10.00f);
+    controller.setRampDownRate(channels, 10.00f);
+
+    controller.killChannelsAfterTest(channels, true);
+
+    controller.powerOnChannels(channels);
+
+    for (int i = 0; i < 15; ++i)
+    {
+        auto voltage = controller.readVoltages(channels);
+        auto current = controller.readCurrents(channels);
+
+        logger->info(
+            "\tCH0: ({} V, {} nA), CH1: ({} V, {} nA)", 
+            voltage[0], 
+            current[0]*1000,
+            voltage[1], 
+            current[1]*1000
+        );
+        QThread::sleep(1);
+    }
+
 }
