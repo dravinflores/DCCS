@@ -119,7 +119,7 @@ static void setParameters(std::string parameter, T value, CHVector channels, Spd
     
     // T val = value;
 
-    for (unsigned short i = 0; i < channelListSize; ++i)
+    for (unsigned short i = 0; i < channels.size(); ++i)
     {
         listOfChannelsToWrite[0] = i;
 
