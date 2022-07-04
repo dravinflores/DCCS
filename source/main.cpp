@@ -17,16 +17,22 @@
 #include <QDir>
 
 #include <spdlog/spdlog.h>
-#include <spdlog/sinks/basic_file_sink.h>
+#include <spdlog/sinks/stdout_color_sinks.h>
 
-#include <gui/MainWindow.hpp>
+// #include <gui/MainWindow.hpp>
+
+#define NO_GUI
+#ifdef NO_GUI
+    #include "test/manual/test.hpp"
+#endif 
 
 int main(int argc, char** argv)
 {
-    spdlog::set_level(spdlog::level::debug);
+    // spdlog::set_level(spdlog::level::debug);
+    spdlog::set_level(spdlog::level::info);
     spdlog::set_pattern("[%Y-%m-%d %H:%M:%S] [%=16n] %^[%=8l]%$ %v");
 
-
+#ifndef NO_GUI
     QApplication app(argc, argv);
     app.setStyle(QStyleFactory::create("Fusion"));
 
@@ -36,4 +42,7 @@ int main(int argc, char** argv)
     spdlog::drop_all();
 
     return app.exec();
+#else
+    TestControlOfPowerSupply();
+#endif
 }

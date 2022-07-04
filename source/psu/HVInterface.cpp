@@ -2,38 +2,39 @@
 
 #include <exception>
 
-#include <fmt/core.h>
 #include <spdlog/spdlog.h>
 #include <spdlog/sinks/stdout_color_sinks.h>
 
 #ifdef VIRTUALIZE_CONNECTION
-#include "FakeHV/FakeHVLibrary.h"
+    #include "FakeHV/FakeHVLibrary.h"
+    #define InitializeSystem    FakeHV_InitializeSystem
+    #define DeinitializeSystem  FakeHV_DeinitializeSystem
+    #define GetCrateMap         FakeHV_GetCrateMap
+    #define GetChannelParameter FakeHV_GetChannelParameter
+    #define SetChannelParameter FakeHV_SetChannelParameter
+    #define GetError            FakeHV_GetError
+    #define Free                FakeHV_Free
 #else
-#include <CAENHVWrapper.h>
+    #include <CAENHVWrapper.h>
+    #define InitializeSystem    CAENHV_InitSystem
+    #define DeinitializeSystem  CAENHV_DeinitSystem
+    #define GetCrateMap         CAENHV_GetCrateMap
+    #define GetChannelParameter CAENHV_GetChParam
+    #define SetChannelParameter CAENHV_SetChParam
+    #define GetError            CAENHV_GetError
+    #define Free                CAENHV_Free
 #endif
 
+using FloatVector = std::vector<float>;
+using CHVector = std::vector<unsigned short>;
+using ULongVector = std::vector<unsigned long>;
 using SpdlogLogger = std::shared_ptr<spdlog::logger>;
 
-static constexpr int default_value { 512 };
-
-HVInterface::HVInterface():
-    handle { -1 },
-    connected { false },
-    logger { spdlog::stdout_color_mt("HVInterface") }
-{}
-
-HVInterface::~HVInterface()
+static PowerSupplyProperties get_crate_map(SpdlogLogger logger, int handle)
 {
-    // Auto-disconnect for convenience.
-    if (connected)
-    {
-        disconnect();
-    }
-}
+    PowerSupplyProperties properties;
 
-static PowerSupplyProperties get_crate_map(SpdlogLogger& logger, int handle)
-{
-    // Allocate according to the library specifications
+    // We need the following variables/pointers in order to interface.
     unsigned short numberOfSlots;
     unsigned short* listOfChannelsIndexedBySlot = nullptr;
     char* listOfModelsIndexedBySlot = nullptr;
@@ -42,10 +43,7 @@ static PowerSupplyProperties get_crate_map(SpdlogLogger& logger, int handle)
     unsigned char* listOfFirmwareSuffixesIndexedBySlot = nullptr;
     unsigned char* listOfFirmwarePrefixesIndexedBySlot = nullptr;
 
-    PowerSupplyProperties properties;
-
-#ifdef VIRTUALIZE_CONNECTION
-    int result = FakeHV_GetCrateMap(
+    auto result = (int) GetCrateMap(
         handle,
         &numberOfSlots,
         &listOfChannelsIndexedBySlot,
@@ -55,382 +53,422 @@ static PowerSupplyProperties get_crate_map(SpdlogLogger& logger, int handle)
         &listOfFirmwareSuffixesIndexedBySlot,
         &listOfFirmwarePrefixesIndexedBySlot
     );
-#else
-    auto result = (int) CAENHV_GetCrateMap(
-        handle,
-        &numberOfSlots,
-        &listOfChannelsIndexedBySlot,
-        &listOfModelsIndexedBySlot,
-        &descriptionList,
-        &listOfSerialNumbersIndexedBySlot,
-        &listOfFirmwareSuffixesIndexedBySlot,
-        &listOfFirmwarePrefixesIndexedBySlot
-    );
-#endif
 
-    if (result != 0)
+    if (result)
     {
-    #ifdef VIRTUALIZE_CONNECTION
-        auto message = fmt::format("FakeHV_GetCrateMap {}", FakeHV_GetError(handle));
-    #else
-        auto message = fmt::format("CAENHV_GetCrateMap Error: {}", CAENHV_GetError(handle));
-    #endif
+        std::string msg = "GetCrateMap Error ";
+        msg += std::to_string(result) + ": ";
+        msg += GetError(handle);
 
         if (logger)
-        {
-            logger->error(message);
-        }
+            logger->error(msg);
 
         if (listOfChannelsIndexedBySlot)
-        {
-        #ifdef VIRTUALIZE_CONNECTION
-            FakeHV_Free(listOfChannelsIndexedBySlot);
-        #else
-            CAENHV_Free(listOfChannelsIndexedBySlot);
-        #endif 
-        }
+            Free(listOfChannelsIndexedBySlot);
         if (listOfModelsIndexedBySlot)
-        {
-        #ifdef VIRTUALIZE_CONNECTION
-            FakeHV_Free(listOfModelsIndexedBySlot);
-        #else
-            CAENHV_Free(listOfModelsIndexedBySlot);
-        #endif 
-        }
+            Free(listOfModelsIndexedBySlot);
         if (descriptionList)
-        {
-        #ifdef VIRTUALIZE_CONNECTION
-            FakeHV_Free(descriptionList);
-        #else
-            CAENHV_Free(descriptionList);
-        #endif 
-        }
+            Free(descriptionList);
         if (listOfSerialNumbersIndexedBySlot)
-        {
-        #ifdef VIRTUALIZE_CONNECTION
-            FakeHV_Free(listOfSerialNumbersIndexedBySlot);
-        #else
-            CAENHV_Free(listOfSerialNumbersIndexedBySlot);
-        #endif 
-        }
+            Free(listOfSerialNumbersIndexedBySlot);
         if (listOfFirmwareSuffixesIndexedBySlot)
-        {
-        #ifdef VIRTUALIZE_CONNECTION
-            FakeHV_Free(listOfFirmwareSuffixesIndexedBySlot);
-        #else
-            CAENHV_Free(listOfFirmwareSuffixesIndexedBySlot);
-        #endif 
-        }
+            Free(listOfFirmwareSuffixesIndexedBySlot);
         if (listOfFirmwarePrefixesIndexedBySlot)
-        {
-        #ifdef VIRTUALIZE_CONNECTION
-            FakeHV_Free(listOfFirmwarePrefixesIndexedBySlot);
-        #else
-            CAENHV_Free(listOfFirmwarePrefixesIndexedBySlot);
-        #endif 
-        }
+            Free(listOfFirmwarePrefixesIndexedBySlot);
 
-        // We'll throw to alert the caller.
-        throw std::runtime_error(message);
+        throw std::runtime_error(msg);
     }
-    else
-    {
-        struct PowerSupplyProperties
-        {
-            std::string Board;
-            std::string Model;
-            std::string Description;
-            std::string NumberOfSlots;
-            std::string ChannelsAvailable;
-            std::string Serial;
-            std::string Firmware;
-        };
-        properties.Board = fmt::format("{}", 0);
-        properties.Model = fmt::format("{}", listOfModelsIndexedBySlot[0]);
-        properties.Description = fmt::format("{}", descriptionList[0]);
-        properties.NumberOfSlots = fmt::format("{}", numberOfSlots);
-        properties.ChannelsAvailable = fmt::format("{}", listOfChannelsIndexedBySlot[0]);
-        properties.Serial = fmt::format("{}", listOfSerialNumbersIndexedBySlot[0]);
-        properties.Firmware = fmt::format(
-            "{}.{}", 
-            listOfFirmwarePrefixesIndexedBySlot[0], 
-            listOfFirmwareSuffixesIndexedBySlot[0]
-        );
 
-    #ifdef VIRTUALIZE_CONNECTION
-        FakeHV_Free(listOfChannelsIndexedBySlot);
-        FakeHV_Free(listOfModelsIndexedBySlot);
-        FakeHV_Free(descriptionList);
-        FakeHV_Free(listOfSerialNumbersIndexedBySlot);
-        FakeHV_Free(listOfFirmwareSuffixesIndexedBySlot);
-        FakeHV_Free(listOfFirmwarePrefixesIndexedBySlot);
-    #else
-        CAENHV_Free(listOfChannelsIndexedBySlot);
-        CAENHV_Free(listOfModelsIndexedBySlot);
-        CAENHV_Free(descriptionList);
-        CAENHV_Free(listOfSerialNumbersIndexedBySlot);
-        CAENHV_Free(listOfFirmwareSuffixesIndexedBySlot);
-        CAENHV_Free(listOfFirmwarePrefixesIndexedBySlot);
-    #endif 
+    properties.Board = "Board 0";
+    properties.Model = listOfModelsIndexedBySlot[0];
+    properties.Description = descriptionList[0];
+    properties.NumberOfSlots = std::to_string(numberOfSlots);
+    properties.ChannelsAvailable = std::to_string(listOfChannelsIndexedBySlot[0]);
+    properties.Serial = std::to_string(listOfSerialNumbersIndexedBySlot[0]);
+    properties.Firmware = \
+        std::to_string(listOfFirmwarePrefixesIndexedBySlot[0]) 
+        + "."
+        + std::to_string(listOfFirmwareSuffixesIndexedBySlot[0]);
 
-        if (logger)
-        {
-            logger->debug("Get crate map was successful.");
-        }
-    }
+    Free(listOfChannelsIndexedBySlot);
+    Free(listOfModelsIndexedBySlot);
+    Free(descriptionList);
+    Free(listOfSerialNumbersIndexedBySlot);
+    Free(listOfFirmwareSuffixesIndexedBySlot);
+    Free(listOfFirmwarePrefixesIndexedBySlot);
 
     return properties;
 }
 
 template <typename T>
-static void setParameter(T val, std::string parameter, int channel, SpdlogLogger& logger, int handle)
+static void setParameters(std::string parameter, T value, CHVector channels, SpdlogLogger logger, int handle)
 {
+    // We create explicit variables, which will be passed into the function.
     unsigned short slot = 0;
+    const char* param = parameter.c_str();
+
+    // BUG: It appears that simultaneous sets to parameters (i.e. passing more
+    // than a single channel in) do not actually set all channels. We'll have to
+    // iterate then.
+
+    // unsigned short channelListSize = (unsigned short) channels.size();
+    // const unsigned short* listOfChannelsToWrite = channels.data();
+
     unsigned short channelListSize = 1;
-    unsigned short listOfChannelsToWrite[] = { (unsigned short) channel };
-    T newParameterValue;
+    unsigned short listOfChannelsToWrite[1];
+    
+    // T val = value;
 
-#ifdef VIRTUALIZE_CONNECTION
-    int result = FakeHV_SetChannelParameter(
-        handle,
-        slot,
-        (const char*) parameter.c_str(),
-        channelListSize,
-        listOfChannelsToWrite,
-        (void*) &newParameterValue
-    );
-#else
-    auto result = (int) CAENHV_SetChParam(
-        handle,
-        slot,
-        (const char*) parameter.c_str(),
-        channelListSize,
-        listOfChannelsToWrite,
-        (void*) &newParameterValue
-    );
-#endif
-
-    if (result != 0)
+    for (unsigned short i = 0; i < channels.size(); ++i)
     {
-    #ifdef VIRTUALIZE_CONNECTION
-        auto message = fmt::format("Unable to set parameter {}. {}", parameter, FakeHV_GetError(handle));
-    #else
-        auto message = fmt::format("Unable to set parameter {}. Error: {}", parameter, CAENHV_GetError(handle));
-    #endif
+        listOfChannelsToWrite[0] = i;
 
-        if (logger)
+        auto result = (int) SetChannelParameter(
+            handle,
+            slot,
+            param,
+            channelListSize,
+            (const unsigned short*) listOfChannelsToWrite,
+            (void*) &value
+        );
+
+        if (result)
         {
-            logger->error(message);
+            std::string msg = "SetChannelParameter Error ";
+            msg += std::to_string(result) + ": ";
+            msg += GetError(handle);
+
+            if (logger)
+                logger->error(msg);
+
+            throw std::runtime_error(msg);
         }
 
-        throw std::runtime_error(message);
-    }
-    else
-    {
-        auto message = fmt::format("Parameter {} was set successful.", parameter);
-        
+        std::string msg = \
+            "CH" + std::to_string(i) + ": "
+            + "Parameter " + parameter 
+            + " was set to " + std::to_string(value);
+
         if (logger)
-        {
-            logger->debug(message);
-        }
+            logger->debug(msg);
     }
 }
 
 template <typename T>
-static T getParameter(T hint, std::string parameter, int channel, SpdlogLogger& logger, int handle)
+static std::vector<T> getParameters(std::string parameter, CHVector channels, SpdlogLogger logger, int handle)
 {
     unsigned short slot = 0;
-    unsigned short channelListSize = 1;
-    unsigned short listOfChannelsToRead[] = { (unsigned short) channel };
-    T listOfParameterValues[1];
+    unsigned short channelListSize = (unsigned short) channels.size();
+    const unsigned short* listOfChannelsToRead = channels.data();
+    const char* param = parameter.c_str();
 
-#ifdef VIRTUALIZE_CONNECTION
-    int result = FakeHV_GetChannelParameter(
+    std::vector<T> returnVector(channels.size(), (T) 0);
+
+    auto result = (int) GetChannelParameter(
         handle,
         slot,
-        (const char*) parameter.c_str(),
+        param,
         channelListSize,
         listOfChannelsToRead,
-        (void*) listOfParameterValues
+        (void*) returnVector.data()
     );
-#else
-    auto result = (int) CAENHV_GetChParam(
-        handle,
-        slot,
-        (const char*) parameter.c_str(),
-        channelListSize,
-        listOfChannelsToRead,
-        (void*) listOfParameterValues
-    );
-#endif
 
-    if (result != 0)
+    if (result)
     {
-    #ifdef VIRTUALIZE_CONNECTION
-        auto message = fmt::format("Unable to get parameter {}. {}", parameter, FakeHV_GetError(handle));
-    #else
-        auto message = fmt::format("Unable to get parameter {}. Error: {}", parameter, CAENHV_GetError(handle));
-    #endif
+        std::string msg = "GetChannelParameter Error ";
+        msg += std::to_string(result) + ": ";
+        msg += GetError(handle);
 
         if (logger)
-        {
-            logger->error(message);
-        }
+            logger->error(msg);
 
-        throw std::runtime_error(message);
+        throw std::runtime_error(msg);
     }
-    else
+
+    std::string msg = "Parameter " + parameter + " received: ( ";
+    for (int i = 0; i < channelListSize; ++i)
     {
-        auto message = fmt::format(
-            "Parameter {} successfully retrieved. Value: {}", 
-            parameter,
-            (T) listOfParameterValues[0]
-        );
-        
-        if (logger)
-        {
-            logger->debug(message);
-        }
+        msg += std::to_string(returnVector[i]) + ", ";
     }
+    msg += ")";
 
-    return (T) listOfParameterValues[0];
+    if (logger)
+        logger->debug(msg);
+
+    return returnVector;
 }
 
-void HVInterface::connect(msu_smdt::Port port)
+HVInterface::HVInterface():
+    handle { -1 },
+    connected { false }
+{
+    try
+    {
+        logger = spdlog::stdout_color_mt("HVLogger");
+    }
+    catch (const spdlog::spdlog_ex& ex)
+    {
+        logger = spdlog::get("HVLogger");
+    }
+}
+
+HVInterface::~HVInterface()
+{
+    if (!connected)
+        return;
+
+    try
+    {
+        disconnectFromPSU();
+    }
+    catch (...)
+    {
+        return;
+    }
+}
+
+void HVInterface::connectToPSU(msu_smdt::Port port)
 {
 #ifdef VIRTUALIZE_CONNECTION
     int system = 6;
-#else
-    auto system = N1470;
-#endif 
-
     int linkType = 5;
-    auto connectionString = fmt::format(
-        "{}_{}_{}_{}_{}_{}", 
-        port.port,
-        port.baud_rate, 
-        port.data_bit,
-        port.stop_bit,
-        port.parity,
-        port.lbusaddress
-    );
+#else
+    CAENHV_SYSTEM_TYPE_t system = N1470;
+    int linkType = LINKTYPE_USB_VCP;
+#endif
+
+    auto connection = \
+        port.port + "_"
+        + port.baud_rate + "_"
+        + port.data_bit + "_"
+        + port.stop_bit + "_"
+        + port.parity + "_"
+        + port.lbusaddress;
 
     const char* username = "";
     const char* password = "";
-    int handle;
+    int handle = -1;
 
-#ifdef VIRTUALIZE_CONNECTION
-    int result = FakeHV_InitializeSystem(
+    auto result = (int) InitializeSystem(
         system,
         linkType,
-        (void*) connectionString.c_str(),
+        (void*) connection.c_str(),
         username,
         password,
         &handle
     );
-#else
-    auto result = (int) CAENHV_InitSystem(
-        system,
-        linkType,
-        (void*) connectionString.c_str(),
-        username,
-        password,
-        &handle
-    );
-#endif
 
-    if (result != 0)
+    if (result)
     {
-    #ifdef VIRTUALIZE_CONNECTION
-        auto message = fmt::format("Unable to connect. {}", FakeHV_GetError(handle));
-    #else
-        auto message = fmt::format("Unable to connect. Error: {}", CAENHV_GetError(handle));
-    #endif
+        std::string msg = "InitializeSystem Error ";
+        msg += std::to_string(result) + ": ";
+        msg += GetError(handle);
 
         if (logger)
-        {
-            logger->error(message);
-        }
+            logger->error(msg);
 
-        throw std::runtime_error(message);
+        throw std::runtime_error(msg);
     }
-    else
-    {
-        this->handle = handle;
-        this->connected = true;
-        auto message = fmt::format("Connection was succesful.");
-        
-        if (logger)
-        {
-            logger->debug(message);
-        }
-    }
+
+    this->handle = handle;
+    this->connected = true;
+
+    if (logger)
+        logger->debug("Successfully Connected");
 }
 
-void HVInterface::disconnect()
+void HVInterface::disconnectFromPSU()
 {
-#ifdef VIRTUALIZE_CONNECTION
-    int result = FakeHV_DeinitializeSystem(this->handle);
-#else
-    auto result = (int) CAENHV_DeinitSystem(this->handle);
-#endif
+    auto result = (int) DeinitializeSystem(handle);
 
-    if (result != 0)
+    if (result)
     {
-    #ifdef VIRTUALIZE_CONNECTION
-        auto message = fmt::format("Unable to disconnect. {}", FakeHV_GetError(handle));
-    #else
-        auto message = fmt::format("Unable to disconnect. Error: {}", CAENHV_GetError(handle));
-    #endif
+        std::string msg = "DeinitializeSystem Error ";
+        msg += std::to_string(result) + ": ";
+        msg += GetError(handle);
 
         if (logger)
-        {
-            logger->error(message);
-        }
+            logger->error(msg);
 
-        throw std::runtime_error(message);
+        throw std::runtime_error(msg);
     }
-    else
-    {
-        this->handle = -1;
-        this->connected = false;
-        auto message = fmt::format("Successfully Disconnected.");
-        
-        if (logger)
-        {
-            logger->debug(message);
-        }
-    }
+
+    this->handle = -1;
+    this->connected = false;
+
+    if (logger)
+        logger->debug("Successfully Disconnected");
 }
 
-bool HVInterface::isConnected()
+bool HVInterface::isConnectedToPSU()
 {
-    return this->connected;
+    return connected;
 }
 
 PowerSupplyProperties HVInterface::getProperties()
 {
-    return this->properties;
+    return properties;
 }
 
-void HVInterface::setParameterFloat(float value, std::string parameter, int channel)
+void HVInterface::setParametersFloat(std::string parameter, float value, CHVector channels)
 {
-    setParameter(value, parameter, channel, this->logger, this->handle);
+    setParameters<float>(parameter, value, channels, this->logger, this->handle);
 }
 
-void HVInterface::setParameterInt(int value, std::string parameter, int channel)
+void HVInterface::setParametersLong(std::string parameter, unsigned long value, CHVector channels)
 {
-    setParameter(value, parameter, channel, this->logger, this->handle);
+    setParameters<unsigned long>(parameter, value, channels, this->logger, this->handle);
 }
 
-float HVInterface::getParameterFloat(std::string parameter, int channel)
+FloatVector HVInterface::getParametersFloat(std::string parameter, CHVector channels)
 {
-    float hint = 0.00f;
-    return getParameter(hint, parameter, channel, this->logger, this->handle);
+    return getParameters<float>(parameter, channels, this->logger, this->handle);
 }
 
-int HVInterface::getParameterInt(std::string parameter, int channel)
+ULongVector HVInterface::getParametersLong(std::string parameter, CHVector channels)
 {
-    int hint = 0;
-    return getParameter(hint, parameter, channel, this->logger, this->handle);
+    return getParameters<unsigned long>(parameter, channels, this->logger, this->handle);
+}
+
+bool HVInterface::checkAlarm()
+{
+#ifdef VIRTUALIZE_CONNECTION
+    return false;
+#else
+    unsigned short numberOfSlots = 1;
+    const unsigned short slotList[] = { 0 };
+    const char* parameter = "Alarm";
+
+    unsigned long resultList[] = { 512 };
+
+    auto result = (int) CAENHV_GetBdParam(
+        handle,
+        numberOfSlots,
+        slotList,
+        parameter,
+        (void*) resultList
+    );
+
+    if (result)
+    {
+        std::string msg = "CAENHV_GetBdParam Error ";
+        msg += std::to_string(result) + ": ";
+        msg += GetError(handle);
+
+        if (logger)
+            logger->error(msg);
+
+        throw std::runtime_error(msg);
+    }
+
+    if (logger)
+        logger->debug("Alarm status: {}", resultList[0]);
+
+    return bool(resultList[0]);
+#endif
+}
+
+bool HVInterface::checkInterlock()
+{
+#ifdef VIRTUALIZE_CONNECTION
+    return false;
+#else
+    unsigned short numberOfSlots = 1;
+    const unsigned short slotList[] = { 0 };
+    const char* parameter = "IlkStat";
+
+    unsigned long resultList[] = { 512 };
+
+    auto result = (int) CAENHV_GetBdParam(
+        handle,
+        numberOfSlots,
+        slotList,
+        parameter,
+        (void*) resultList
+    );
+
+    if (result)
+    {
+        std::string msg = "CAENHV_GetBdParam Error ";
+        msg += std::to_string(result) + ": ";
+        msg += GetError(handle);
+
+        if (logger)
+            logger->error(msg);
+
+        throw std::runtime_error(msg);
+    }
+
+    if (logger)
+        logger->debug("Interlock status: {}", resultList[0]);
+
+    return bool(resultList[0]);
+#endif
+}
+
+void HVInterface::clearAlarm()
+{
+#ifdef VIRTUALIZE_CONNECTION
+    return;
+#else
+    unsigned short numberOfSlots = 1;
+    const unsigned short slotList[] = { 0 };
+    const char* parameter = "ClrAlarm";
+    unsigned long value = 0;
+
+    auto result = (int) CAENHV_SetBdParam(
+        handle,
+        numberOfSlots,
+        slotList,
+        parameter,
+        (void*) &value
+    );
+
+    if (result)
+    {
+        std::string msg = "CAENHV_SetBdParam Error ";
+        msg += std::to_string(result) + ": ";
+        msg += GetError(handle);
+
+        if (logger)
+            logger->error(msg);
+
+        throw std::runtime_error(msg);
+    }
+#endif
+}
+
+void HVInterface::setInterlock(bool state)
+{
+#ifdef VIRTUALIZE_CONNECTION
+    return;
+#else
+    unsigned short numberOfSlots = 1;
+    const unsigned short slotList[] = { 0 };
+    const char* parameter = "Interlock";
+    unsigned long value = 0;
+
+    if (state)
+        value = 1;
+
+    auto result = (int) CAENHV_SetBdParam(
+        handle,
+        numberOfSlots,
+        slotList,
+        parameter,
+        (void*) &value
+    );
+
+    if (result)
+    {
+        std::string msg = "CAENHV_SetBdParam Error ";
+        msg += std::to_string(result) + ": ";
+        msg += GetError(handle);
+
+        if (logger)
+            logger->error(msg);
+
+        throw std::runtime_error(msg);
+    }
+#endif
 }
