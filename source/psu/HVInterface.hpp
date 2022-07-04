@@ -10,13 +10,13 @@
 
 struct PowerSupplyProperties
 {
-    std::string Board;
-    std::string Model;
-    std::string Description;
-    std::string NumberOfSlots;
-    std::string ChannelsAvailable;
-    std::string Serial;
-    std::string Firmware;
+    std::string Board               { "N/A" };
+    std::string Model               { "N/A" };
+    std::string Description         { "N/A" };
+    std::string NumberOfSlots       { "N/A" };
+    std::string ChannelsAvailable   { "N/A" };
+    std::string Serial              { "N/A" };
+    std::string Firmware            { "N/A" };
 };
 
 class HVInterface 
@@ -31,17 +31,23 @@ public:
     HVInterface& operator=(const HVInterface&) = delete;
     HVInterface& operator=(HVInterface&&) = delete;
 
-    void connect(msu_smdt::Port port);
-    void disconnect();
-    bool isConnected();
+    void connectToPSU(msu_smdt::Port port);
+    void disconnectFromPSU();
+    bool isConnectedToPSU();
 
     PowerSupplyProperties getProperties();
 
-    void setParameterFloat(float value, std::string parameter, int channel);
-    void setParameterInt(int value, std::string parameter, int channel);
+    void setParametersFloat(std::string parameter, float value, std::vector<unsigned short> channels);
+    void setParametersLong(std::string parameter, unsigned long value, std::vector<unsigned short> channels);
+    
+    std::vector<float> getParametersFloat(std::string parameter, std::vector<unsigned short> channels);
+    std::vector<unsigned long> getParametersLong(std::string parameter, std::vector<unsigned short> channels);
 
-    float getParameterFloat(std::string parameter, int channel);
-    int getParameterInt(std::string parameter, int channel);
+    bool checkAlarm();
+    bool checkInterlock();
+
+    void clearAlarm();
+    void setInterlock(bool state);
 
 private:
     int handle;

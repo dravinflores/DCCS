@@ -43,8 +43,8 @@ endif()
 add_library(
     PSUController
     STATIC
-        PSUController.cpp
-        PSUController.hpp
+        # PSUController.cpp
+        # PSUController.hpp
 )
 
 target_link_libraries(
