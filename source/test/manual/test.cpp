@@ -82,4 +82,5 @@ void TestPSUController()
         QThread::sleep(1);
     }
 
+    controller.powerOffChannels(channels);
 }
