@@ -44,7 +44,7 @@ public:
 
     bool checkConnection();
 
-    void initializeTestConfiguration(TestConfiguration config);
+    void initializeTestConfiguration(TestConfiguration normalConfig, TestConfiguration reverseConfig);
 
     ChannelStatus interpretChannelStatus(int channel);
 

@@ -438,16 +438,5 @@ void MainWindow::readConfigurationFile()
     emit connect(PSUPort);
 
     if (ok && !item.isEmpty())
-    {
-        if (item == "Normal")
-        {
-            logger->debug("Passing out normal config");
-            emit distributeTestConfiguration(normalConfig);
-        }
-        else
-        {
-            logger->debug("Passing out reverse config");
-            emit distributeTestConfiguration(reverseConfig);
-        }
-    }
+        emit distributeTestConfiguration(normalConfig, reverseConfig);
 }

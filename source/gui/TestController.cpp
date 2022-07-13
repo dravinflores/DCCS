@@ -8,6 +8,8 @@
 #include <QElapsedTimer>
 
 #include <fmt/core.h>
+#include <fmt/ranges.h>
+
 #include <spdlog/sinks/stdout_color_sinks.h>
 
 #include "TestController.hpp"
@@ -28,7 +30,7 @@ void TestController::connect(msu_smdt::Port port)
     try
     {
         logger->debug("Connecting");
-        controller->connect(port);
+        controller->connectToPSU(port);
     }
     catch(const std::exception& e)
     {
@@ -45,7 +47,7 @@ void TestController::disconnect()
 {
     try
     {
-        controller->disconnect();
+        controller->disconnectFromPSU();
     }
     catch(const std::exception& e)
     {
@@ -63,32 +65,58 @@ bool TestController::checkConnection()
     return connection;
 }
 
-void TestController::initializeTestConfiguration(TestConfiguration config)
+void TestController::initializeTestConfiguration(TestConfiguration normalConfig, TestConfiguration reverseConfig)
 {
-#ifdef COMMENT
-    logger->debug("testVoltage received: {}", config.testVoltage);
-    logger->debug("currentLimit received: {}", config.currentLimit);
-    logger->debug("maxVoltage received: {}", config.maxVoltage);
-    logger->debug("rampUpRate received: {}", config.rampUpRate);
-    logger->debug("rampDownRate received: {}", config.rampDownRate);
-    logger->debug("overCurrentLimit received: {}", config.overCurrentLimit);
-#endif // COMMENT
+    // We need to get the polarities of each channel.
+    std::vector<int> normalChannels;
+    std::vector<int> reverseChannels;
 
-    // We'll just operate on all channels at once.
-    for (int i = 0; i < 4; ++i)
+    try
     {
-        // Set defaults.
-        controller->setTestVoltage(i, config.testVoltage);
-        controller->setCurrentLimit(i, config.currentLimit);
-        controller->setMaxVoltage(i, config.maxVoltage);
-        controller->setRampUpRate(i, config.rampUpRate);
-        controller->setRampDownRate(i, config.rampDownRate);
-        controller->setOverCurrentTimeLimit(i, config.overCurrentLimit);
+        for (int i = 0; i < 4; ++i)
+        {
+            auto polarity = controller->readPolarities({ i });
 
-        if (config.powerDownMethod)
-            controller->setPowerDownMethod(i, RecoveryMethod::Ramp);
+            if (polarity[0])
+                normalChannels.push_back(i);
+            else
+                reverseChannels.push_back(i);
+        }
+    }
+    catch (const std::exception& e)
+    {
+        logger->error("{}", e.what());
+    }
+
+    try
+    {
+        controller->setTestVoltages(normalChannels, normalConfig.testVoltage);
+        // controller->setCurrentLimits(normalChannels, normalConfig.currentLimit);
+        controller->setMaxVoltages(normalChannels, normalConfig.maxVoltage);
+        controller->setRampUpRate(normalChannels, normalConfig.rampUpRate);
+        controller->setRampDownRate(normalChannels, normalConfig.rampDownRate);
+        controller->setOverCurrentLimits(normalChannels, normalConfig.overCurrentLimit);
+
+        if (normalConfig.powerDownMethod)
+            controller->killChannelsAfterTest(normalChannels, true);
         else
-            controller->setPowerDownMethod(i, RecoveryMethod::Kill);
+            controller->killChannelsAfterTest(normalChannels, true);
+
+        controller->setTestVoltages(reverseChannels, reverseConfig.testVoltage);
+        // controller->setCurrentLimits(reverseChannels, reverseConfig.currentLimit);
+        controller->setMaxVoltages(reverseChannels, reverseConfig.maxVoltage);
+        controller->setRampUpRate(reverseChannels, reverseConfig.rampUpRate);
+        controller->setRampDownRate(reverseChannels, reverseConfig.rampDownRate);
+        controller->setOverCurrentLimits(reverseChannels, reverseConfig.overCurrentLimit);
+
+        if (reverseConfig.powerDownMethod)
+            controller->killChannelsAfterTest(reverseChannels, true);
+        else
+            controller->killChannelsAfterTest(reverseChannels, true);
+    }
+    catch (const std::exception& e)
+    {
+        logger->error("{}", e.what());
     }
 }
 
@@ -143,7 +171,7 @@ void TestController::channelPolarityRequest(int channel)
 
     try
     {
-        polarity = (int) controller->readPolarity(channel);
+        polarity = controller->readPolarities({channel})[0];
     }
     catch (const std::exception& e)
     {
@@ -193,43 +221,18 @@ void TestController::createThread()
 
 static void packageTubeData(std::shared_ptr<spdlog::logger> logger, PSUController* controller, TubeData& data)
 {
-    bool isInHighPrecision = false;
-
     try
     {
-        isInHighPrecision = controller->isInHighPrecision(data.channel);
+        data.current = controller->readCurrents({ data.channel })[0];
     }
     catch (...)
     {
-        logger->error("Error. Cannot obtain bool isInHighPrecision");
-    }
-
-    if (isInHighPrecision)
-    {
-        try
-        {
-            data.current = controller->readHighPrecisionCurrent(data.channel);
-        }
-        catch (...)
-        {
-            logger->error("Error. Cannot obtain current precision");
-        }
-    }
-    else
-    {
-        try
-        {
-            data.current = controller->readLowPrecisionCurrent(data.channel);
-        }
-        catch (...)
-        {
-            logger->error("Error. Cannot obtain current");
-        }
+        logger->error("Error. Cannot obtain current");
     }
 
     try
     {
-        data.voltage = controller->readVoltage(data.channel);
+        data.voltage = controller->readVoltages({ data.channel })[0];
     }
     catch (...)
     {
@@ -290,25 +293,23 @@ void Test::test(QMutex* mutex, PSUController* controller, std::vector<int> activ
 #define OFFSET
 #ifdef OFFSET
     // We can now find out the currentOffset.
-    std::vector<float> currentOffset(size);
-    // float currentOffset[size];
+    std::vector<float> currentOffsets(size, 0.00f);
+    std::vector<float> testVoltages(size, 0.00f);
 
-    for (int k = 0; k < size; ++k)
+    logger->info("Performing offset calculation for channels: [ {} ]", fmt::join(activeChannels, ", "));
+
+    if (!stopFlag)
     {
-        logger->debug("Performing offset calculation for channel {}", activeChannels[k]);
-
-        if (stopFlag)
-            break;
-
-        float testVoltage = controller->getTestVoltage(activeChannels[k]);
-        controller->setTestVoltage(activeChannels[k], 0.00f);
-        controller->powerChannelOn(k);
+        testVoltages = controller->getTestVoltages(activeChannels);
+        controller->setTestVoltages(activeChannels, 0.00f);
+        controller->powerOnChannels(activeChannels);
         QThread::sleep(parameters.timeForTestingVoltage);
-        currentOffset[k] = controller->readLowPrecisionCurrent(activeChannels[k]);
+        currentOffsets = controller->readCurrents(activeChannels);
 
-        logger->debug("Offset for Channel {}: {}", activeChannels[k], currentOffset[k]);
+        logger->info("Offsets are: [ {} ]", fmt::join(currentOffsets, ", "));
 
-        controller->setTestVoltage(activeChannels[k], testVoltage);
+        for (int k = 0; k < size; ++k)
+            controller->setTestVoltages({ k }, testVoltages[k]);
     }
 #else
     // We'll power on each channel and ramp to the testing voltage.
@@ -320,21 +321,6 @@ void Test::test(QMutex* mutex, PSUController* controller, std::vector<int> activ
         controller->powerChannelOn(k);
     }
 #endif
-
-    // We should read back the test voltage to be sure everything works.
-#ifdef COMMENT
-    float testVoltage = controller->getTestVoltage(activeChannels[k]);
-    
-    for (int k = 0; k < size; ++k)
-    {
-        float epsilon = 0.01;
-        float voltage = controller->readVoltage(activeChannels[k]);
-        if ((voltage <= testVoltage - epsilon) || (voltage >= testVoltage + epsilon))
-        {
-            logger->error("Incorrect Voltage");
-        }
-    }
-#endif // COMMENT
 
     int minutes = 0;
 
@@ -352,9 +338,6 @@ void Test::test(QMutex* mutex, PSUController* controller, std::vector<int> activ
         {
             if (stopFlag)
                 break;
-
-            // We should gather intrinsic current here.
-            // gatherIntrinsicCurrent();
 
             // Physically connect the tube.
             // hwcontroller.connect(activeChannels[k], i);

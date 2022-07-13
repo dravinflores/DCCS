@@ -25,10 +25,31 @@
     #define Free                CAENHV_Free
 #endif
 
+using CHVector = std::vector<int>;
 using FloatVector = std::vector<float>;
-using CHVector = std::vector<unsigned short>;
 using ULongVector = std::vector<unsigned long>;
 using SpdlogLogger = std::shared_ptr<spdlog::logger>;
+
+static std::vector<unsigned short> convert(std::vector<int> channels)
+{
+    if (channels.size() > 4)
+        throw std::runtime_error("Too Many Channels. Expected 4.");
+
+    if (channels.size() < 1)
+        throw std::runtime_error("Too Few Channels. Expected At Least 1.");
+
+    std::vector<unsigned short> convertedChannels;
+
+    for (const auto& elem : channels)
+    {
+        if (elem < 0 || elem > 0xFFFF)
+            throw std::runtime_error("Invalid Channel Number");
+
+        convertedChannels.push_back(std::make_unsigned<short>::type(elem));
+    }
+
+    return convertedChannels;
+}
 
 static PowerSupplyProperties get_crate_map(SpdlogLogger logger, int handle)
 {
@@ -103,6 +124,17 @@ static PowerSupplyProperties get_crate_map(SpdlogLogger logger, int handle)
 template <typename T>
 static void setParameters(std::string parameter, T value, CHVector channels, SpdlogLogger logger, int handle)
 {
+    std::vector<unsigned short> v;
+    try
+    {
+        v = convert(channels);
+    }
+    catch(const std::exception& e)
+    {
+        logger->error("HVInterface Error: {}", e.what());
+        throw;
+    }
+
     // We create explicit variables, which will be passed into the function.
     unsigned short slot = 0;
     const char* param = parameter.c_str();
@@ -116,12 +148,11 @@ static void setParameters(std::string parameter, T value, CHVector channels, Spd
 
     unsigned short channelListSize = 1;
     unsigned short listOfChannelsToWrite[1];
-    
-    // T val = value;
 
-    for (unsigned short i = 0; i < channels.size(); ++i)
+
+    for (int i = 0; i < v.size(); ++i)
     {
-        listOfChannelsToWrite[0] = i;
+        listOfChannelsToWrite[0] = v[i];
 
         auto result = (int) SetChannelParameter(
             handle,
@@ -157,12 +188,23 @@ static void setParameters(std::string parameter, T value, CHVector channels, Spd
 template <typename T>
 static std::vector<T> getParameters(std::string parameter, CHVector channels, SpdlogLogger logger, int handle)
 {
+    std::vector<unsigned short> v;
+    try
+    {
+        v = convert(channels);
+    }
+    catch(const std::exception& e)
+    {
+        logger->error("HVInterface Error: {}", e.what());
+        throw;
+    }
+
     unsigned short slot = 0;
-    unsigned short channelListSize = (unsigned short) channels.size();
-    const unsigned short* listOfChannelsToRead = channels.data();
+    unsigned short channelListSize = (unsigned short) v.size();
+    const unsigned short* listOfChannelsToRead = v.data();
     const char* param = parameter.c_str();
 
-    std::vector<T> returnVector(channels.size(), (T) 0);
+    std::vector<T> returnVector(v.size(), (T) 0);
 
     auto result = (int) GetChannelParameter(
         handle,

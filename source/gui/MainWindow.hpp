@@ -54,7 +54,7 @@ public:
 signals:
     void connect(msu_smdt::Port port);
     void startTest(std::vector<int> channels);
-    void distributeTestConfiguration(TestConfiguration config);
+    void distributeTestConfiguration(TestConfiguration normalConfig, TestConfiguration reverseConfig);
     void fillFakeBarcodes();
 
 private slots:

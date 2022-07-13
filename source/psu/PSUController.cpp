@@ -4,7 +4,7 @@
 
 #include "PSUController.hpp"
 
-using CHVector = std::vector<unsigned short>;
+using CHVector = std::vector<int>;
 
 constexpr float VSetMax = 5500.0f;
 constexpr float ISetMax = 21.000f;
@@ -61,12 +61,6 @@ void PSUController::disconnectFromPSU()
 
 void PSUController::powerOnChannels(CHVector channels)
 {
-    if (channels.size() > 4)
-    {
-        logger->error("Too many channels");
-        throw std::runtime_error("Too many channels. Expected 4 channels or less.");
-    }
-
     try
     {
         interface.setParametersLong("Pw", 1, channels);
@@ -80,12 +74,6 @@ void PSUController::powerOnChannels(CHVector channels)
 
 void PSUController::powerOffChannels(CHVector channels)
 {
-    if (channels.size() > 4)
-    {
-        logger->error("Too many channels");
-        throw std::runtime_error("Too many channels. Expected 4 channels or less.");
-    }
-
     try
     {
         interface.setParametersLong("Pw", 0, channels);
@@ -100,12 +88,6 @@ void PSUController::powerOffChannels(CHVector channels)
 std::vector<float> PSUController::getTestVoltages(CHVector channels)
 {
     std::vector<float> returnVector(channels.size(), -1.00f);
-
-    if (channels.size() > 4)
-    {
-        logger->error("Too many channels");
-        throw std::runtime_error("Too many channels. Expected 4 channels or less.");
-    }
 
     try
     {
@@ -122,12 +104,6 @@ std::vector<float> PSUController::getTestVoltages(CHVector channels)
 
 void PSUController::setTestVoltages(CHVector channels, float voltage)
 {
-    if (channels.size() > 4)
-    {
-        logger->error("Too many channels");
-        throw std::runtime_error("Too many channels. Expected 4 channels or less.");
-    }
-
     if (voltage < 0.00f - epsilon || voltage > VSetMax + epsilon)
     {
         logger->error("Voltage value out of range");
@@ -147,12 +123,6 @@ void PSUController::setTestVoltages(CHVector channels, float voltage)
 
 void PSUController::setTestCurrents(CHVector channels, float current)
 {
-    if (channels.size() > 4)
-    {
-        logger->error("Too many channels");
-        throw std::runtime_error("Too many channels. Expected 4 channels or less.");
-    }
-
     if (current < 0.00f - epsilon || current > ISetMax + epsilon)
     {
         logger->error("Current out of range");
@@ -172,12 +142,6 @@ void PSUController::setTestCurrents(CHVector channels, float current)
 
 void PSUController::setMaxVoltages(CHVector channels, float voltage)
 {
-    if (channels.size() > 4)
-    {
-        logger->error("Too many channels");
-        throw std::runtime_error("Too many channels. Expected 4 channels or less.");
-    }
-
     if (voltage < 0.00f - epsilon || voltage > MaxVMax + epsilon)
     {
         logger->error("Voltage value out of range");
@@ -197,12 +161,6 @@ void PSUController::setMaxVoltages(CHVector channels, float voltage)
 
 void PSUController::setOverCurrentLimits(CHVector channels, float time)
 {
-    if (channels.size() > 4)
-    {
-        logger->error("Too many channels");
-        throw std::runtime_error("Too many channels. Expected 4 channels or less.");
-    }
-
     if (time < 0.00f - epsilon || time > TripMax + epsilon)
     {
         logger->error("Over Current Time value out of range");
@@ -222,12 +180,6 @@ void PSUController::setOverCurrentLimits(CHVector channels, float time)
 
 void PSUController::setRampUpRate(CHVector channels, float rate)
 {
-    if (channels.size() > 4)
-    {
-        logger->error("Too many channels");
-        throw std::runtime_error("Too many channels. Expected 4 channels or less.");
-    }
-
     if (rate < 1.00f - epsilon || rate > RUpMax + epsilon)
     {
         logger->error("Ramp Up Rate out of range");
@@ -247,12 +199,6 @@ void PSUController::setRampUpRate(CHVector channels, float rate)
 
 void PSUController::setRampDownRate(CHVector channels, float rate)
 {
-    if (channels.size() > 4)
-    {
-        logger->error("Too many channels");
-        throw std::runtime_error("Too many channels. Expected 4 channels or less.");
-    }
-
     if (rate < 1.00f - epsilon || rate > RDwnMax + epsilon)
     {
         logger->error("Ramp Down Rate out of range");
@@ -272,12 +218,6 @@ void PSUController::setRampDownRate(CHVector channels, float rate)
 
 void PSUController::killChannelsAfterTest(CHVector channels, bool kill)
 {
-    if (channels.size() > 4)
-    {
-        logger->error("Too many channels");
-        throw std::runtime_error("Too many channels. Expected 4 channels or less.");
-    }
-
     try
     {
         unsigned long value = 1;
@@ -297,11 +237,6 @@ void PSUController::killChannelsAfterTest(CHVector channels, bool kill)
 std::vector<float> PSUController::readVoltages(CHVector channels)
 {
     std::vector<float> returnVector(channels.size(), -1.00f);
-    if (channels.size() > 4)
-    {
-        logger->error("Too many channels");
-        throw std::runtime_error("Too many channels. Expected 4 channels or less.");
-    }
 
     try
     {
@@ -320,12 +255,6 @@ std::vector<float> PSUController::readCurrents(CHVector channels)
 {
     std::vector<float> returnVector(channels.size(), -1.00f);
 
-    if (channels.size() > 4)
-    {
-        logger->error("Too many channels");
-        throw std::runtime_error("Too many channels. Expected 4 channels or less.");
-    }
-
     try
     {
         returnVector = interface.getParametersFloat("IMonH", channels);
@@ -343,12 +272,6 @@ std::vector<unsigned long> PSUController::readPolarities(CHVector channels)
 {
     std::vector<unsigned long> returnVector(channels.size(), false);
 
-    if (channels.size() > 4)
-    {
-        logger->error("Too many channels");
-        throw std::runtime_error("Too many channels. Expected 4 channels or less.");
-    }
-
     try
     {
         returnVector = interface.getParametersLong("Polarity", channels);
@@ -365,12 +288,6 @@ std::vector<unsigned long> PSUController::readPolarities(CHVector channels)
 std::vector<unsigned long> PSUController::readStatuses(CHVector channels)
 {
     std::vector<unsigned long> returnVector(channels.size(), 0);
-
-    if (channels.size() > 4)
-    {
-        logger->error("Too many channels");
-        throw std::runtime_error("Too many channels. Expected 4 channels or less.");
-    }
 
     try
     {

@@ -53,7 +53,7 @@ qt_standard_project_setup()
 
 add_executable(dccs source/main.cpp)
 add_subdirectory(source/psu)
-# add_subdirectory(source/gui)
+add_subdirectory(source/gui)
 add_subdirectory(source/test/manual)
 
 target_include_directories(

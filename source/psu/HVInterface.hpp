@@ -37,11 +37,11 @@ public:
 
     PowerSupplyProperties getProperties();
 
-    void setParametersFloat(std::string parameter, float value, std::vector<unsigned short> channels);
-    void setParametersLong(std::string parameter, unsigned long value, std::vector<unsigned short> channels);
+    void setParametersFloat(std::string parameter, float value, std::vector<int> channels);
+    void setParametersLong(std::string parameter, unsigned long value, std::vector<int> channels);
     
-    std::vector<float> getParametersFloat(std::string parameter, std::vector<unsigned short> channels);
-    std::vector<unsigned long> getParametersLong(std::string parameter, std::vector<unsigned short> channels);
+    std::vector<float> getParametersFloat(std::string parameter, std::vector<int> channels);
+    std::vector<unsigned long> getParametersLong(std::string parameter, std::vector<int> channels);
 
     bool checkAlarm();
     bool checkInterlock();

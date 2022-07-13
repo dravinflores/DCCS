@@ -19,11 +19,10 @@
 #include <spdlog/spdlog.h>
 #include <spdlog/sinks/stdout_color_sinks.h>
 
-// #include <gui/MainWindow.hpp>
-
-#define NO_GUI
 #ifdef NO_GUI
     #include "test/manual/test.hpp"
+#else
+    #include <gui/MainWindow.hpp>
 #endif 
 
 int main(int argc, char** argv)

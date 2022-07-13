@@ -52,7 +52,7 @@ void TestPSUController()
     PSUController controller;
     controller.connectToPSU(port);
 
-    std::vector<unsigned short> channels { 0, 1 };
+    std::vector<int> channels { 0, 1 };
 
     controller.setTestVoltages(channels, 15.00f);
     controller.setTestCurrents(channels, 2.000f);
