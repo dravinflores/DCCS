@@ -1,11 +1,17 @@
 target_sources(
     dccs
     PRIVATE
-        MainWindow.cpp
-        MainWindow.hpp
         CollectionModel.cpp
         CollectionModel.hpp
-        TestController.cpp
-        TestController.hpp
+        # TestController.cpp
+        # TestController.hpp
         TestInfo.hpp
+        ChannelWidget.cpp
+        ChannelWidget.hpp
+        TestStatusWidget.cpp
+        TestStatusWidget.hpp
+        ControlPanelWidget.cpp
+        ControlPanelWidget.hpp
+        MainWindow.cpp
+        MainWindow.hpp
 )

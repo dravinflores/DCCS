@@ -15,6 +15,7 @@
 #include "TestController.hpp"
 
 TestController::TestController(QObject* parent):
+    QObject(parent),
     connection { false },
     parameters { 10, 8, 1 },
     mutex { std::make_shared<QMutex>() },
@@ -25,7 +26,7 @@ TestController::TestController(QObject* parent):
 TestController::~TestController()
 {}
 
-void TestController::connect(msu_smdt::Port port)
+bool TestController::connect(msu_smdt::Port port)
 {
     try
     {
@@ -36,14 +37,14 @@ void TestController::connect(msu_smdt::Port port)
     {
         logger->error("{}", e.what());
         connection = false;
-        return;
+        return false;
     }
 
     connection = true;
-    emit connected();
+    return true;
 }
 
-void TestController::disconnect()
+bool TestController::disconnect()
 {
     try
     {
@@ -53,11 +54,11 @@ void TestController::disconnect()
     {
         logger->error("{}", e.what());
         connection = true;
-        return;
+        return false;
     }
 
     connection = false;
-    emit disconnected();
+    return true;
 }
 
 bool TestController::checkConnection()

@@ -1,5 +1,7 @@
 // TestController.hpp
 
+#pragma once
+
 #include <atomic>
 #include <string>
 #include <vector>
@@ -16,8 +18,6 @@
 #include <psu/PSUController.hpp>
 
 #include "TestInfo.hpp"
-
-#pragma once
 
 enum class TestError
 {
@@ -42,7 +42,12 @@ public:
     TestController& operator=(const TestController&) = delete;
     TestController& operator=(TestController&&) = delete;
 
+    bool connect(msu_smdt::Port port);
+    bool disconnect();
     bool checkConnection();
+
+    void start(std::vector<int> activeChannels);
+    void stop();
 
     void initializeTestConfiguration(TestConfiguration normalConfig, TestConfiguration reverseConfig);
 
@@ -51,12 +56,6 @@ public:
     void setTestingParameters(TestParameters parameters);
 
 public slots:
-    void connect(msu_smdt::Port port);
-    void disconnect();
-
-    void start(std::vector<int> activeChannels);
-    void stop();
-
     // These slots listen for the test thread to signal that data is ready.
     void channelPolarityRequest(int channel);
     void tubeDataPacketReady(TubeData data);
@@ -64,9 +63,6 @@ public slots:
     void timeInfoReady(std::string elapsedTime, std::string remainingTime);
 
 signals:
-    void connected();
-    void disconnected();
-
     void error(TestError error, std::string message);
 
     void stopTest();

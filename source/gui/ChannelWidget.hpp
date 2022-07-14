@@ -9,9 +9,12 @@
 #include <QGroupBox>
 #include <QGridLayout>
 
+#include <QTableView>
+
 #include <spdlog/spdlog.h>
 
-#include "TestController.hpp"
+#include "CollectionModel.hpp"
+// #include "TestController.hpp"
 #include "TestInfo.hpp"
 
 class ChannelWidget : public QWidget
@@ -19,7 +22,7 @@ class ChannelWidget : public QWidget
     Q_OBJECT
 
 public:
-    ChannelWidget(QObject* parent, int channel, TestParameters parameters);
+    ChannelWidget(QWidget* parent = nullptr, TestParameters parameters = TestParameters());
     ~ChannelWidget();
 
     ChannelWidget(const ChannelWidget&) = delete;
@@ -28,14 +31,17 @@ public:
     ChannelWidget& operator=(const ChannelWidget&) = delete;
     ChannelWidget& operator=(ChannelWidget&&) = delete;
 
-public slots:
+    void setChannel(int channel);
+
     void receiveChannelPolarity(int polarity);
     void receiveTubeDataPacket(TubeData data);
+    void fillWithFakeBarcodes();
 
 signals:
-    void alert(std::string msg);
+    void issueAlert(std::string msg);
 
 private:
+    int channel;
     std::string name;
     std::string polarity;
 

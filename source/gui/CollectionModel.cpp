@@ -1,15 +1,18 @@
 // CollectionModel.cpp
 
+#ifndef NDEBUG
+    #define DEBUG
+#endif
+
 #include <fmt/core.h>
 
 #include <QColor>
 
 #include "CollectionModel.hpp"
 
-CollectionModel::CollectionModel(QObject* parent, int channel, TestParameters parameters):
+CollectionModel::CollectionModel(QObject* parent, TestParameters parameters):
     QAbstractTableModel(parent),
-    channel { channel },
-    polarity { 0 },
+    channel { -1 },
     parameters { parameters },
     internalData(parameters.tubesPerChannel),
     barcodes(parameters.tubesPerChannel, "")
@@ -135,29 +138,35 @@ bool CollectionModel::setData(const QModelIndex& index, const QVariant& value, i
 
     if (col == 1)
     {
-        barcodes[row] = value.toString().toStdString();
+    #ifdef DEBUG
+        auto str = value.toString().toStdString();
+
+        if (str == "FAKES")
+            createFakeBarcodes();
+        else
+            barcodes[row] = str;
         return true;
+    #else
+        // Should validate this somehow?
+        barcodes[row] = value.toString().toStdString();
+    #endif
     }
 
     return false;
 }
 
-void CollectionModel::receiveChannelPolarity(int polarity)
+void CollectionModel::setChannel(int channel)
 {
-    this->polarity = polarity;
+    this->channel = channel;
 }
 
-void CollectionModel::receiveTubeDataPacket(TubeData data)
+void CollectionModel::storeTubeDataPacket(TubeData data)
 {
     emit layoutAboutToBeChanged();
 
     if (data.channel == channel)
-    {
         internalData[data.index] = data;
-    }
 
-    // QModelIndex topLeft = index(data.index, 2);
-    // QModelIndex bottomRight = index(parameters.tubesPerChannel, 3);
     emit layoutChanged();
 }
 
@@ -166,9 +175,7 @@ void CollectionModel::createFakeBarcodes()
     emit layoutAboutToBeChanged();
 
     for (int i = 0; i < barcodes.size(); ++i)
-    {
         barcodes[i] = fmt::format("MSU0012{}", i);
-    }
 
     emit layoutChanged();
 }

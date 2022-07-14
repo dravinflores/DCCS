@@ -51,6 +51,20 @@ find_package(
 )
 qt_standard_project_setup()
 
+#[[
+qt_add_resources(
+    dccs 
+        "icons"
+    PREFIX 
+        "/resources/images"
+    FILES
+        link.svg
+        link-slash.svg
+        play.svg
+        stop.svg
+)
+#]]
+
 add_executable(dccs source/main.cpp)
 add_subdirectory(source/psu)
 add_subdirectory(source/gui)

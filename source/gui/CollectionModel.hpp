@@ -15,7 +15,7 @@ class CollectionModel : public QAbstractTableModel
     Q_OBJECT
 
 public:
-    explicit CollectionModel(QObject* parent, int channel, TestParameters parameters);
+    explicit CollectionModel(QObject* parent, TestParameters parameters);
     ~CollectionModel();
 
     int columnCount(const QModelIndex& parent = QModelIndex()) const;
@@ -25,14 +25,13 @@ public:
     int rowCount(const QModelIndex& parent = QModelIndex()) const;
     bool setData(const QModelIndex& index, const QVariant& value, int role = Qt::DisplayRole);
 
-public slots:
-    void receiveChannelPolarity(int polarity);
-    void receiveTubeDataPacket(TubeData data);
+    void setChannel(int channel);
+
+    void storeTubeDataPacket(TubeData data);
     void createFakeBarcodes();
 
 private:
     int channel;
-    int polarity;
     TestParameters parameters;
     std::vector<TubeData> internalData;
     std::vector<std::string> barcodes;
