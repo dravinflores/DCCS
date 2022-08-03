@@ -4,6 +4,8 @@
 
 #include <map>
 
+#include <QString>
+#include <QByteArray>
 #include <QMutexLocker>
 #include <QElapsedTimer>
 
@@ -14,11 +16,29 @@
 
 #include "TestController.hpp"
 
+constexpr bool USE_HV_WRAPPER_STATUS { true };
+
+constexpr uint32_t ON                   { 1 << 0 };
+constexpr uint32_t RAMP_UP              { 1 << 1 };
+constexpr uint32_t RAMP_DOWN            { 1 << 2 };
+constexpr uint32_t OVER_CURRENT         { 1 << 3 };
+constexpr uint32_t OVER_VOLTAGE         { 1 << 4 };
+constexpr uint32_t UNDER_VOLTAGE        { 1 << 5 };
+constexpr uint32_t EXTERNAL_TRIP        { 1 << 6 };
+constexpr uint32_t MAXIMUM_VOLTAGE      { 1 << 7 };
+constexpr uint32_t EXTERNAL_DISABLE     { 1 << 8 };
+constexpr uint32_t INTERNAL_TRIP        { 1 << 9 };
+constexpr uint32_t CALIBRATION_ERROR    { 1 << 10 };
+constexpr uint32_t UNPLUGGED            { 1 << 11 };
+
+constexpr int timeout = 5000;
+
 TestController::TestController(QObject* parent):
     QObject(parent),
     connection { false },
     parameters { 10, 8, 1 },
     mutex { std::make_shared<QMutex>() },
+    port { std::make_shared<QSerialPort>(this) },
     controller { std::make_shared<PSUController>() },
     logger { spdlog::stdout_color_mt("TestController") }
 {}
@@ -26,47 +46,12 @@ TestController::TestController(QObject* parent):
 TestController::~TestController()
 {}
 
-bool TestController::connect(msu_smdt::Port port)
-{
-    try
-    {
-        logger->debug("Connecting");
-        controller->connectToPSU(port);
-    }
-    catch(const std::exception& e)
-    {
-        logger->error("{}", e.what());
-        connection = false;
-        return false;
-    }
-
-    connection = true;
-    return true;
-}
-
-bool TestController::disconnect()
-{
-    try
-    {
-        controller->disconnectFromPSU();
-    }
-    catch(const std::exception& e)
-    {
-        logger->error("{}", e.what());
-        connection = true;
-        return false;
-    }
-
-    connection = false;
-    return true;
-}
-
 bool TestController::checkConnection()
 {
     return connection;
 }
 
-void TestController::initializeTestConfiguration(TestConfiguration normalConfig, TestConfiguration reverseConfig)
+void TestController::initializeTestConfiguration(TestConfiguration normal, TestConfiguration reverse)
 {
     // We need to get the polarities of each channel.
     std::vector<int> normalChannels;
@@ -91,26 +76,26 @@ void TestController::initializeTestConfiguration(TestConfiguration normalConfig,
 
     try
     {
-        controller->setTestVoltages(normalChannels, normalConfig.testVoltage);
-        // controller->setCurrentLimits(normalChannels, normalConfig.currentLimit);
-        controller->setMaxVoltages(normalChannels, normalConfig.maxVoltage);
-        controller->setRampUpRate(normalChannels, normalConfig.rampUpRate);
-        controller->setRampDownRate(normalChannels, normalConfig.rampDownRate);
-        controller->setOverCurrentLimits(normalChannels, normalConfig.overCurrentLimit);
+        controller->setTestVoltages(normalChannels, normal.testVoltage);
+        // controller->setCurrentLimits(normalChannels, normal.currentLimit);
+        controller->setMaxVoltages(normalChannels, normal.maxVoltage);
+        controller->setRampUpRate(normalChannels, normal.rampUpRate);
+        controller->setRampDownRate(normalChannels, normal.rampDownRate);
+        controller->setOverCurrentLimits(normalChannels, normal.overCurrentLimit);
 
-        if (normalConfig.powerDownMethod)
+        if (normal.powerDownMethod)
             controller->killChannelsAfterTest(normalChannels, true);
         else
             controller->killChannelsAfterTest(normalChannels, true);
 
-        controller->setTestVoltages(reverseChannels, reverseConfig.testVoltage);
-        // controller->setCurrentLimits(reverseChannels, reverseConfig.currentLimit);
-        controller->setMaxVoltages(reverseChannels, reverseConfig.maxVoltage);
-        controller->setRampUpRate(reverseChannels, reverseConfig.rampUpRate);
-        controller->setRampDownRate(reverseChannels, reverseConfig.rampDownRate);
-        controller->setOverCurrentLimits(reverseChannels, reverseConfig.overCurrentLimit);
+        controller->setTestVoltages(reverseChannels, reverse.testVoltage);
+        // controller->setCurrentLimits(reverseChannels, reverse.currentLimit);
+        controller->setMaxVoltages(reverseChannels, reverse.maxVoltage);
+        controller->setRampUpRate(reverseChannels, reverse.rampUpRate);
+        controller->setRampDownRate(reverseChannels, reverse.rampDownRate);
+        controller->setOverCurrentLimits(reverseChannels, reverse.overCurrentLimit);
 
-        if (reverseConfig.powerDownMethod)
+        if (reverse.powerDownMethod)
             controller->killChannelsAfterTest(reverseChannels, true);
         else
             controller->killChannelsAfterTest(reverseChannels, true);
@@ -121,16 +106,48 @@ void TestController::initializeTestConfiguration(TestConfiguration normalConfig,
     }
 }
 
-ChannelStatus TestController::interpretChannelStatus(int channel)
-{
-    // Not Yet Implemented.
-    ChannelStatus status;
-    return status;
-}
-
 void TestController::setTestingParameters(TestParameters parameters)
 {
     this->parameters = parameters;
+}
+
+bool TestController::connect(msu_smdt::Port PSUPort, msu_smdt::Port DCCHPort)
+{
+    try
+    {
+        logger->debug("Connecting");
+        controller->connectToPSU(PSUPort);
+    }
+    catch(const std::exception& e)
+    {
+        logger->error("{}", e.what());
+        connection = false;
+        return false;
+    }
+
+    port->setPortName(QString::fromStdString(DCCHPort.port));
+    port->setBaudRate(std::stoi(DCCHPort.baud_rate));
+    port->setDataBits(QSerialPort::Data8);
+
+    connection = true;
+    return true;
+}
+
+bool TestController::disconnect()
+{
+    try
+    {
+        controller->disconnectFromPSU();
+    }
+    catch(const std::exception& e)
+    {
+        logger->error("{}", e.what());
+        connection = true;
+        return false;
+    }
+
+    connection = false;
+    return true;
 }
 
 void TestController::start(std::vector<int> activeChannels)
@@ -142,7 +159,6 @@ void TestController::start(std::vector<int> activeChannels)
     if (testThread.isRunning())
     {
         logger->error("A Test is currently running. You should wait or stop the test");
-        // emit this->error(TestError::TestIsRunningError, "A Test is currently running. You should wait or stop the test");
     }
     else
     {
@@ -151,6 +167,7 @@ void TestController::start(std::vector<int> activeChannels)
         testThread.start();
         emit executeTestInThread(
             mutex.get(), 
+            port.get(),
             controller.get(), 
             activeChannels, 
             parameters
@@ -160,7 +177,7 @@ void TestController::start(std::vector<int> activeChannels)
 
 void TestController::stop()
 {
-    emit stopTest();
+    emit stop();
     testThread.quit();
 }
 
@@ -177,25 +194,25 @@ void TestController::channelPolarityRequest(int channel)
     catch (const std::exception& e)
     {
         logger->error("{}", e.what());
-        emit this->error(TestError::ReadError, e.what());
+        emit error(e.what());
     }
 
     emit completeChannelPolarityRequest(polarity);
 }
 
-void TestController::tubeDataPacketReady(TubeData data)
+void TestController::tubeDataPacketIsReadyFromThread(TubeData data)
 {
-    emit distributeTubeDataPacket(data);
+    emit tubeDataPacketIsReady(data);
 }
 
-void TestController::channelStatusReady(ChannelStatus status)
+void TestController::channelStatusIsReadyFromThread(ChannelStatus status)
 {
-    emit distributeChannelStatus(status);
+    emit channelStatusIsReady(status);
 }
 
-void TestController::timeInfoReady(std::string elapsedTime, std::string remainingTime)
+void TestController::timeInfoIsReadyFromThread(std::string elapsed, std::string remaining)
 {
-    emit distributeTimeInfo(elapsedTime, remainingTime);
+    emit timeInfoIsReady(elapsed, remaining);
 }
 
 void TestController::createThread()
@@ -212,36 +229,57 @@ void TestController::createThread()
 
     // We now connect the signals from test to the slots in TestController.
     QObject::connect(test, &Test::returnChannelPolarity, this, &TestController::channelPolarityRequest);
-    QObject::connect(test, &Test::distributeTubeDataPacket, this, &TestController::tubeDataPacketReady);
-    QObject::connect(test, &Test::distributeChannelStatus, this, &TestController::channelStatusReady);
-    QObject::connect(test, &Test::distributeTimeInfo, this, &TestController::timeInfoReady);
+    QObject::connect(test, &Test::distributeTubeDataPacket, this, &TestController::tubeDataPacketIsReadyFromThread);
+    QObject::connect(test, &Test::distributeChannelStatus, this, &TestController::channelStatusIsReadyFromThread);
+    QObject::connect(test, &Test::distributeTimeInfo, this, &TestController::timeInfoIsReadyFromThread);
 
     // We want to connect the stop signals.
-    QObject::connect(this, &TestController::stopTest, test, &Test::stop, Qt::DirectConnection);
+    QObject::connect(this, &TestController::stop, test, &Test::stop, Qt::DirectConnection);
 }
 
-static void packageTubeData(std::shared_ptr<spdlog::logger> logger, PSUController* controller, TubeData& data)
+static std::string interpretStatus(unsigned long status)
 {
-    try
-    {
-        data.current = controller->readCurrents({ data.channel })[0];
-    }
-    catch (...)
-    {
-        logger->error("Error. Cannot obtain current");
-    }
+    std::string status_str = "";
 
-    try
-    {
-        data.voltage = controller->readVoltages({ data.channel })[0];
-    }
-    catch (...)
-    {
-        logger->error("Error. Cannot obtain voltage");
-    }
+    if (status & ON)
+        status_str += "| ON ";
 
-    data.current += (float) (rand() % 60) + 0.01;
-    data.voltage += (float) (rand() % 60) + 0.06;
+    if (status & RAMP_UP)
+        status_str += "| RAMP_UP ";
+
+    if (status & RAMP_DOWN)
+        status_str += "| RAMP_DOWN ";
+
+    if (status & OVER_CURRENT)
+        status_str += "| OVER_CURRENT ";
+
+    if (status & OVER_VOLTAGE)
+        status_str += "| OVER_VOLTAGE ";
+
+    if (status & UNDER_VOLTAGE)
+        status_str += "| UNDER_VOLTAGE ";
+
+    if (status & EXTERNAL_TRIP)
+        status_str += "| EXTERNAL_TRIP ";
+
+    if (status & MAXIMUM_VOLTAGE)
+        status_str += "| MAX_VOLTAGE ";
+
+    if (status & EXTERNAL_DISABLE)
+        status_str += "| EXTERNAL_DISABLE ";
+
+    if (status & INTERNAL_TRIP)
+        status_str += "| INTERNAL_TRIP ";
+
+    if (status & CALIBRATION_ERROR)
+        status_str += "| CALIBRATION_ERROR ";
+
+    if (status & UNPLUGGED)
+        status_str += "| UNPLUGGED ";
+
+    status_str += "|";
+    
+    return status_str;
 }
 
 Test::Test():
@@ -260,116 +298,157 @@ Test::Test():
 Test::~Test()
 {}
 
-void Test::test(QMutex* mutex, PSUController* controller, std::vector<int> activeChannels, TestParameters parameters)
+void Test::test(
+    QMutex* mutex, 
+    QSerialPort* port,
+    PSUController* controller, 
+    std::vector<int> channels, 
+    TestParameters parameters
+)
 {
-    // We haven't received a stop call yet seeing as we just started. This
-    // variable is atomic, so it is safe to read and write without guarding
-    // with a mutex. 
     stopFlag = false;
 
-    // We need to lock the mutex so we can access TestController exclusively.
     QMutexLocker controlLocker(mutex);
-    // QMutexLocker log(loggerMutex);
 
-    // We're now in a different thread. Let's get to work.
-
-    // We'll start a timer to record the elapsed time, remaining time, etc.
     QElapsedTimer timer;
     timer.start();
 
-    logger->debug("Beginning Testing");
+    if (!port->open(QIODeviceBase::ReadWrite))
+    {
+        logger->error("Cannot connect to DCCH Board [FATAL]: {}", port->errorString().toStdString());
+        return;
+    }
 
-    // We can, in principle, perform a test on mutiple channels simultaneously.
-    // Critical Assumption: The activeChannels vector is sorted.
+    // int rampTime = config.testVoltage / config.rampUpRate;
+    int rampTime = 5;
 
-    // If we consider that the Critical Assumption is true, then we can make the
-    // following optimization. We allow for each channel to have, at most, a
-    // single tube testing at a time. Since there are only ever 4 active
-    // channels, then we only need to store the data for 4 tubes. We can just
-    // recycle this data for each iteration, effectively eliminating the need
-    // to allocate memory for every tube.
-    int size = activeChannels.size();
+    char buf[] = { '{', '*', '*', '}' };
+
+    logger->info("Starting Test");
+
+    int size = channels.size();
     std::vector<TubeData> data(size);
+    std::vector<ChannelStatus> statuses(size);
+    
+    int numberOfTubesConnected = parameters.tubesPerChannel * size;
 
-#define OFFSET
-#ifdef OFFSET
-    // We can now find out the currentOffset.
+    // We are going to disconnect all tubes.
+    for (int i = 0; i < numberOfTubesConnected; ++i)
+    {
+        buf[0] = (char) i;
+        buf[1] = (char) 0;
+        // auto r = port->writeData(buf, 4);
+        // QByteArray arr(buf, 4);
+        auto r = port->write(buf, 4);
+
+        if (!port->waitForBytesWritten(timeout))
+        {
+            logger->error("Cannot send disable command to DCCH [Fatal]");
+            return;
+        }
+    }
+
     std::vector<float> currentOffsets(size, 0.00f);
     std::vector<float> testVoltages(size, 0.00f);
 
-    logger->info("Performing offset calculation for channels: [ {} ]", fmt::join(activeChannels, ", "));
+    logger->info("Performing offset calculation for channels: [ {} ]", fmt::join(channels, ", "));
 
     if (!stopFlag)
     {
-        testVoltages = controller->getTestVoltages(activeChannels);
-        controller->setTestVoltages(activeChannels, 0.00f);
-        controller->powerOnChannels(activeChannels);
+        testVoltages = controller->getTestVoltages(channels);
+        controller->setTestVoltages(channels, 0.00f);
+        controller->powerOnChannels(channels);
         QThread::sleep(parameters.timeForTestingVoltage);
-        currentOffsets = controller->readCurrents(activeChannels);
+        currentOffsets = controller->readCurrents(channels);
+        controller->powerOffChannels(channels);
 
-        logger->info("Offsets are: [ {} ]", fmt::join(currentOffsets, ", "));
+        logger->info("Offset are: [ {} ]", fmt::join(currentOffsets, ", "));
 
         for (int k = 0; k < size; ++k)
             controller->setTestVoltages({ k }, testVoltages[k]);
     }
-#else
-    // We'll power on each channel and ramp to the testing voltage.
-    for (int k = 0; k < size; ++k)
-    {
-        if (stopFlag)
-            break;
-
-        controller->powerChannelOn(k);
-    }
-#endif
 
     int minutes = 0;
 
-    // Each tube has a uniform number of tubes in a channel. 
-    // Each tube is indexed in the channel.
+    std::vector<int> physicalTubeNumber(size);
+
+    std::vector<float> currents;
+    std::vector<float> voltages;
+    std::vector<unsigned long> unconverted_statuses;
+
     for (int i = 0; i < parameters.tubesPerChannel; ++i)
     {
-        if (stopFlag)
-            break;
-
-        // We have no way of knowing whether we're testing channels { 0, 2 } or
-        // channels { 0, 1, 2, 3 } ahead of time. So we'll use an index to
-        // gather channels, meaning we're at the kth channel.
         for (int k = 0; k < size; ++k)
         {
-            if (stopFlag)
-                break;
+            physicalTubeNumber[k] = (parameters.tubesPerChannel * k) + i;
 
-            // Physically connect the tube.
-            // hwcontroller.connect(activeChannels[k], i);
+            buf[1] = (char) physicalTubeNumber[k];
+            buf[2] = (char) 0;
 
-            data[k].channel = activeChannels[k];
-            data[k].index = i;
-            data[k].isActive = true;
+            auto r = port->write(buf, 4);
+            if (!port->waitForBytesWritten(timeout))
+            {
+                logger->error("Cannot send enable command to DCCH [Fatal]");
+                return;
+            }
         }
 
-        // Now let's test each tube.
         for (int t = 0; t < parameters.secondsPerTube; ++t)
         {
             if (stopFlag)
                 break;
 
+            int s = timer.elapsed() / 1000;
+            auto elapsedTime = fmt::format("{} s", s);
+            auto remainingTime = fmt::format("{} s", (parameters.tubesPerChannel - i) * parameters.secondsPerTube);
+            
+            try
+            {
+                currents = controller->readCurrents(channels);
+            }
+            catch (...)
+            {
+                logger->error("Cannot obtain currents for index {}", i);
+            }
+
+            try
+            {
+                voltages = controller->readVoltages(channels);
+            }
+            catch (...)
+            {
+                logger->error("Cannot obtain voltages for index {}", i);
+            }
+
+            try
+            {
+                unconverted_statuses = controller->readStatuses(channels);
+            }
+            catch (...)
+            {
+                logger->error("Cannot obtain statuses for index {}", i);
+            }
+
             for (int k = 0; k < size; ++k)
             {
-                logger->debug("Collecting for channel {}", k);
+                if (stopFlag)
+                    break;
 
-                int s = timer.elapsed() / 1000;
-                auto elapsedTime = fmt::format("{} s", s);
-                
-                auto remainingTime = fmt::format("{} s", (parameters.tubesPerChannel - i) * parameters.secondsPerTube);
-                ChannelStatus status;
-                
-                logger->debug("Collecting for channel {}", k);
-                packageTubeData(logger, controller, data[k]);
+                for (const auto& s : unconverted_statuses)
+                {
+                    statuses[k].channel = channels[k];
+                    statuses[k].status = interpretStatus(s);
+                }
+
+                data[k].channel = channels[k];
+                data[k].index = physicalTubeNumber[k];
+                data[k].isActive = true;
+
                 emit distributeTubeDataPacket(data[k]);
-                // emit distributeChannelStatus(status);
+                emit distributeChannelStatus(statuses[k]);
                 emit distributeTimeInfo(elapsedTime, remainingTime);
             }
+
             QThread::sleep(1);
         }
 
@@ -380,7 +459,7 @@ void Test::test(QMutex* mutex, PSUController* controller, std::vector<int> activ
         }
     }
 
-    logger->debug("Testing Complete");
+    logger->info("Testing Complete");
 }
 
 void Test::stop()

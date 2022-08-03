@@ -48,6 +48,7 @@ find_package(
         Core
         Gui
         Widgets
+        SerialPort
 )
 qt_standard_project_setup()
 
@@ -86,4 +87,5 @@ target_link_libraries(
         Qt::Gui
         Qt::Core
         Qt::Widgets
+        Qt::SerialPort
 )

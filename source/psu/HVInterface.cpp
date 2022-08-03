@@ -354,22 +354,55 @@ PowerSupplyProperties HVInterface::getProperties()
 
 void HVInterface::setParametersFloat(std::string parameter, float value, CHVector channels)
 {
-    setParameters<float>(parameter, value, channels, this->logger, this->handle);
+    try
+    {
+        setParameters<float>(parameter, value, channels, this->logger, this->handle);
+    }
+    catch (const std::runtime_error& e)
+    {
+        logger->error("{}", e.what());
+        throw;
+    }
+    
 }
 
 void HVInterface::setParametersLong(std::string parameter, unsigned long value, CHVector channels)
 {
-    setParameters<unsigned long>(parameter, value, channels, this->logger, this->handle);
+    try
+    {
+        setParameters<unsigned long>(parameter, value, channels, this->logger, this->handle);
+    }
+    catch (const std::runtime_error& e)
+    {
+        logger->error("{}", e.what());
+        throw;
+    }
 }
 
 FloatVector HVInterface::getParametersFloat(std::string parameter, CHVector channels)
 {
-    return getParameters<float>(parameter, channels, this->logger, this->handle);
+    try
+    {
+        return getParameters<float>(parameter, channels, this->logger, this->handle);
+    }
+    catch (const std::runtime_error& e)
+    {
+        logger->error("{}", e.what());
+        throw;
+    }
 }
 
 ULongVector HVInterface::getParametersLong(std::string parameter, CHVector channels)
 {
-    return getParameters<unsigned long>(parameter, channels, this->logger, this->handle);
+    try
+    {
+        return getParameters<unsigned long>(parameter, channels, this->logger, this->handle);
+    }
+    catch (const std::runtime_error& e)
+    {
+        logger->error("{}", e.what());
+        throw;
+    }
 }
 
 bool HVInterface::checkAlarm()

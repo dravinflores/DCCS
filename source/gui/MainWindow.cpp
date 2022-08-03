@@ -1,7 +1,17 @@
 #include "MainWindow.hpp"
 
+#include <iostream>
+#include <fstream>
+#include <exception>
+
+#include <spdlog/sinks/stdout_color_sinks.h>
+#include <nlohmann/json.hpp>
+
 #include <QVBoxLayout>
 #include <QHBoxLayout>
+#include <QFileDialog>
+
+using json = nlohmann::json;
 
 MainWindow::MainWindow(QWidget* parent):
     QMainWindow(parent),
@@ -12,6 +22,15 @@ MainWindow::MainWindow(QWidget* parent):
     channelWidgetRight { new ChannelWidget },
     testStatusWidget { new TestStatusWidget }
 {
+    try
+    {
+        logger = spdlog::stdout_color_mt("MainWindow");
+    }
+    catch (const spdlog::spdlog_ex& ex)
+    {
+        logger = spdlog::get("MainWindow");
+    }
+
     QVBoxLayout* layout = new QVBoxLayout;
     QHBoxLayout* channelWidgetLayout = new QHBoxLayout;
 
@@ -27,19 +46,161 @@ MainWindow::MainWindow(QWidget* parent):
     centralWidget->setLayout(layout);
     setCentralWidget(centralWidget);
 
-    // Testing Purposes
+    /*
     channelWidgetLeft->setChannel(0);
     channelWidgetRight->setChannel(1);
 
     channelWidgetLeft->receiveChannelPolarity(-1);
     channelWidgetRight->receiveChannelPolarity(+1);
+    */
+
+    readInTestSettings();
 }
 
 MainWindow::~MainWindow()
 {}
 
-void MainWindow::readInTestSettings(std::string path)
-{}
+void MainWindow::readInTestSettings()
+{
+    auto file = QFileDialog::getOpenFileName(this, "Configuration File (JSON)").toStdString();
+    bool no_config = file.empty();
+
+    if (no_config)
+        return;
+
+
+    json config;
+    try
+    {
+        std::ifstream in_file(file);
+        in_file >> config;
+    }
+    catch(const std::exception& e)
+    {
+        logger->error("Unable to parse file. Returning");
+        return;
+    }
+
+    msu_smdt::Port HWPort;
+    msu_smdt::Port PSUPort;
+
+    try
+    {
+        auto port = config["port"]["psu"]["port"].get<std::string>();
+        auto baud_rate = config["port"]["psu"]["baud_rate"].get<std::string>();
+        auto data_bit = config["port"]["psu"]["data_bit"].get<std::string>();
+        auto stop_bit = config["port"]["psu"]["stop_bit"].get<std::string>();
+        auto parity = config["port"]["psu"]["parity"].get<std::string>();
+        auto lbusaddress = config["port"]["psu"]["lbusaddress"].get<std::string>();
+
+        PSUPort = {
+            port,
+            baud_rate,
+            data_bit,
+            stop_bit,
+            parity,
+            lbusaddress
+        };
+    }
+    catch (std::exception & ex)
+    {
+        logger->error("Cannot obtain PSU port information");
+    }
+
+    try
+    {
+        auto port = config["port"]["hw"]["port"].get<std::string>();
+        auto baud_rate = config["port"]["hw"]["baud_rate"].get<std::string>();
+        auto data_bit = config["port"]["hw"]["data_bit"].get<std::string>();
+        auto stop_bit = config["port"]["hw"]["stop_bit"].get<std::string>();
+        auto parity = config["port"]["hw"]["parity"].get<std::string>();
+        auto lbusaddress = config["port"]["hw"]["lbusaddress"].get<std::string>();
+
+        HWPort = {
+            port,
+            baud_rate,
+            data_bit,
+            stop_bit,
+            parity,
+            lbusaddress
+        };
+    }
+    catch (std::exception& ex)
+    {
+        logger->error("Cannot obtain HW port information");
+    }
+
+    TestParameters parameters;
+    try
+    {
+        auto seconds_per_tube = config["test"]["seconds_per_tube"].get<int>();
+        auto tubes_per_channel = config["test"]["tubes_per_channel"].get<int>();
+        auto time_for_testing_voltage = config["test"]["time_for_testing_voltage"].get<int>();
+
+        parameters = {
+            seconds_per_tube,
+            tubes_per_channel,
+            time_for_testing_voltage
+        };
+
+        // controller->setTestingParameters(parameters);
+    }
+    catch (std::exception& ex)
+    {
+        logger->error("Cannot obtain test parameters from file");
+    }
+
+    TestConfiguration normalConfig;
+    TestConfiguration reverseConfig;
+    try
+    {
+        auto test_voltage = config["test"]["normal"]["test_voltage"].get<int>();
+        auto current_limit = config["test"]["normal"]["current_limit"].get<int>();
+        auto max_voltage = config["test"]["normal"]["max_voltage"].get<int>();
+        auto ramp_up_rate = config["test"]["normal"]["ramp_up_rate"].get<int>();
+        auto ramp_down_rate = config["test"]["normal"]["ramp_down_rate"].get<int>();
+        auto over_current_limit = config["test"]["normal"]["over_current_limit"].get<int>();
+        auto power_down_method = config["test"]["normal"]["power_down_method"].get<int>();
+
+        normalConfig = {
+            test_voltage,
+            current_limit,
+            max_voltage,
+            ramp_up_rate,
+            ramp_down_rate,
+            over_current_limit,
+            power_down_method,
+        };
+
+        test_voltage = config["test"]["reverse"]["test_voltage"].get<int>();
+        current_limit = config["test"]["reverse"]["current_limit"].get<int>();
+        max_voltage = config["test"]["reverse"]["max_voltage"].get<int>();
+        ramp_up_rate = config["test"]["reverse"]["ramp_up_rate"].get<int>();
+        ramp_down_rate = config["test"]["reverse"]["ramp_down_rate"].get<int>();
+        over_current_limit = config["test"]["reverse"]["over_current_limit"].get<int>();
+        power_down_method = config["test"]["reverse"]["power_down_method"].get<int>();
+
+        reverseConfig = {
+            test_voltage,
+            current_limit,
+            max_voltage,
+            ramp_up_rate,
+            ramp_down_rate,
+            over_current_limit,
+            power_down_method,
+        };
+    }
+    catch (std::exception& ex)
+    {
+        logger->error("Cannot obtain test initial conditions from file");
+    }
+
+    this->PSUPort = std::move(PSUPort);
+    this->HWPort = std::move(HWPort);
+    this->parameters = std::move(parameters);
+    this->normalConfig = std::move(normalConfig);
+    this->reverseConfig = std::move(reverseConfig);
+}
 
 void MainWindow::receiveRequestToConnect()
 {}

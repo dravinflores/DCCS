@@ -1,5 +1,3 @@
-// TestController.hpp
-
 #pragma once
 
 #include <atomic>
@@ -12,21 +10,14 @@
 #include <QThread>
 #include <QObject>
 
+#include <QSerialPort>
+
 #include <spdlog/spdlog.h>
 
 #include <psu/Port.hpp>
 #include <psu/PSUController.hpp>
 
 #include "TestInfo.hpp"
-
-enum class TestError
-{
-    RESERVED,
-    ConnectionError,
-    FilePathError,
-    TestIsRunningError,
-    ReadError
-};
 
 class TestController : public QObject
 {
@@ -42,44 +33,47 @@ public:
     TestController& operator=(const TestController&) = delete;
     TestController& operator=(TestController&&) = delete;
 
-    bool connect(msu_smdt::Port port);
-    bool disconnect();
     bool checkConnection();
 
-    void start(std::vector<int> activeChannels);
-    void stop();
-
-    void initializeTestConfiguration(TestConfiguration normalConfig, TestConfiguration reverseConfig);
-
-    ChannelStatus interpretChannelStatus(int channel);
+    void initializeTestConfiguration(TestConfiguration normal, TestConfiguration reverse);
 
     void setTestingParameters(TestParameters parameters);
 
 public slots:
-    // These slots listen for the test thread to signal that data is ready.
+    bool connect(msu_smdt::Port PSUPort, msu_smdt::Port DCCHPort);
+    bool disconnect();
+
+    void start(std::vector<int> activeChannels);
+    void stop();
+
     void channelPolarityRequest(int channel);
-    void tubeDataPacketReady(TubeData data);
-    void channelStatusReady(ChannelStatus status);
-    void timeInfoReady(std::string elapsedTime, std::string remainingTime);
+
+    // Receive signal from test thread, indicating that data is ready.
+    void tubeDataPacketIsReadyFromThread(TubeData data);
+    void channelStatusIsReadyFromThread(ChannelStatus status);
+    void timeInfoIsReadyFromThread(std::string elapsed, std::string remaining);
 
 signals:
-    void error(TestError error, std::string message);
+    void connected();
+    void disconnected();
 
-    void stopTest();
+    void error(std::string message);
+
+    void stopCurrentTest();
 
     void executeTestInThread(
-        QMutex* mutex, 
-        PSUController* controller, 
-        std::vector<int> activeChannels, 
+        QMutex* mutex,
+        QSerialPort* port,
+        PSUController* controller,
+        std::vector<int> channels,
         TestParameters parameters
     );
 
-    // Once the test thread has signalled that data is ready, the TestController
-    // then sends out the data through these signals.
     void completeChannelPolarityRequest(int polarity);
-    void distributeTubeDataPacket(TubeData data);
-    void distributeChannelStatus(ChannelStatus status);
-    void distributeTimeInfo(std::string elapsedTime, std::string remainingTime);
+
+    void tubeDataPacketIsReady(TubeData data);
+    void channelStatusIsReady(ChannelStatus status);
+    void timeInfoIsReady(std::string elapsed, std::string remaining);
 
 private:
     void createThread();
@@ -89,11 +83,11 @@ private:
     TestParameters parameters;
     QThread testThread;
     std::shared_ptr<QMutex> mutex;
+    std::shared_ptr<QSerialPort> port;
     std::shared_ptr<PSUController> controller;
     std::shared_ptr<spdlog::logger> logger;
 };
 
-// This object exists so that we can put a worker function test into a new thread.
 class Test : public QObject
 {
     Q_OBJECT
@@ -104,9 +98,10 @@ public:
 
 public slots:
     void test(
-        QMutex* mutex, 
-        PSUController* controller, 
-        std::vector<int> activeChannels, 
+        QMutex* mutex,
+        QSerialPort* port,
+        PSUController* controller,
+        std::vector<int> channels,
         TestParameters parameters
     );
     void stop();

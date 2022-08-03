@@ -39,7 +39,6 @@ ChannelWidget::ChannelWidget(QWidget* parent, TestParameters parameters):
     statusBoxLayout->addWidget(channelStatus);
     channelStatusBox->setLayout(statusBoxLayout);
 
-    // QWidget* centralWidget = new QWidget(this);
     QVBoxLayout* layout = new QVBoxLayout;
 
     layout->addWidget(channelDataBox);

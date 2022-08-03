@@ -3,8 +3,8 @@ target_sources(
     PRIVATE
         CollectionModel.cpp
         CollectionModel.hpp
-        # TestController.cpp
-        # TestController.hpp
+        TestController.cpp
+        TestController.hpp
         TestInfo.hpp
         ChannelWidget.cpp
         ChannelWidget.hpp

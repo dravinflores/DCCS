@@ -2,6 +2,8 @@
 
 #pragma once
 
+#include <string>
+
 struct TubeData
 {
     int index { -1 };
@@ -13,7 +15,8 @@ struct TubeData
 
 struct ChannelStatus
 {
-    unsigned long status { 0 };
+    int channel { -1 };
+    std::string status { "" };
 };
 
 enum class TestMode
