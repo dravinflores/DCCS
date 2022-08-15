@@ -15,6 +15,9 @@ ControlPanelWidget::ControlPanelWidget(QWidget* parent):
     layout->addWidget(execution);
     layout->setAlignment(Qt::AlignCenter);
     setLayout(layout);
+
+    connect(connection, &QPushButton::clicked, this, &ControlPanelWidget::requestToConnect);
+    connect(execution, &QPushButton::clicked, this, &ControlPanelWidget::requestToStart);
 }
 
 void ControlPanelWidget::connectionChanged(bool status)

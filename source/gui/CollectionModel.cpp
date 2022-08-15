@@ -160,6 +160,13 @@ void CollectionModel::setChannel(int channel)
     this->channel = channel;
 }
 
+void CollectionModel::setTestParameters(TestParameters parameters)
+{
+    emit layoutAboutToBeChanged();
+    this->parameters = parameters;
+    emit layoutChanged();
+}
+
 void CollectionModel::storeTubeDataPacket(TubeData data)
 {
     emit layoutAboutToBeChanged();

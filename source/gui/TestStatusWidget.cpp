@@ -56,6 +56,8 @@ void TestStatusWidget::stopTime()
     timeStarted->setText("--:--");
     seconds = 0;
     minutes = 0;
+
+    timeRemaining->setText("0 min");
 }
 
 void TestStatusWidget::receiveTimeRemaining(std::string time)

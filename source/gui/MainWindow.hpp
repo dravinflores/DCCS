@@ -26,20 +26,30 @@ public:
     explicit MainWindow(QWidget* parent = nullptr);
     ~MainWindow();
 
-    void readInTestSettings();
+    bool readInTestSettings();
+
+    void raiseAlert(std::string msg);
 
 public slots:
-    void receiveRequestToConnect();
-    void receiveRequestToDisconnect();
-    void receiveRequestToStart();
-    void receiveRequestToStop();
+    void alertUser(std::string msg);
 
-    void alertUser();
+    void receiveRequestToConnect();
+    void receiveRequestToStart();
 
 signals:
+    void connectionStatusChanged(bool status);
+    void executionStatusChanged(bool status);
+
+    void start(std::vector<int> channels, bool mode);
+    void stop();
 
 private:
-    // TestController* controller;
+    bool hasStarted;
+
+    std::vector<int> normalChannels;
+    std::vector<int> reverseChannels;
+
+    TestController* controller;
 
     // GUI-based members.
     QWidget* channelWidgetContainer;

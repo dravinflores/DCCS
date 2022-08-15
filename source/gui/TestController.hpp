@@ -18,6 +18,7 @@
 #include <psu/PSUController.hpp>
 
 #include "TestInfo.hpp"
+#include "DCCHController.hpp"
 
 class TestController : public QObject
 {
@@ -33,57 +34,51 @@ public:
     TestController& operator=(const TestController&) = delete;
     TestController& operator=(TestController&&) = delete;
 
-    bool checkConnection();
+    bool checkConnection() const;
 
+    void setTestParameters(TestParameters parameters);
     void initializeTestConfiguration(TestConfiguration normal, TestConfiguration reverse);
-
-    void setTestingParameters(TestParameters parameters);
 
 public slots:
     bool connect(msu_smdt::Port PSUPort, msu_smdt::Port DCCHPort);
     bool disconnect();
 
-    void start(std::vector<int> activeChannels);
+    void start(std::vector<int> activeChannels, bool mode);
     void stop();
 
-    void channelPolarityRequest(int channel);
-
-    // Receive signal from test thread, indicating that data is ready.
-    void tubeDataPacketIsReadyFromThread(TubeData data);
-    void channelStatusIsReadyFromThread(ChannelStatus status);
-    void timeInfoIsReadyFromThread(std::string elapsed, std::string remaining);
-
 signals:
-    void connected();
-    void disconnected();
+    void distributeChannelStatus(int channel, std::string status);
+    void distributeChannelPolarity(int channel, int polarity);
+    void distributeTubeDataPacket(TubeData data);
+    void distributeTimeInfo(std::string remaining);
 
-    void error(std::string message);
+    void stopTest();
 
-    void stopCurrentTest();
+    void alert(std::string message);
 
     void executeTestInThread(
         QMutex* mutex,
-        QSerialPort* port,
         PSUController* controller,
         std::vector<int> channels,
-        TestParameters parameters
+        TestParameters parameters,
+        TestConfiguration config
     );
 
-    void completeChannelPolarityRequest(int polarity);
-
-    void tubeDataPacketIsReady(TubeData data);
-    void channelStatusIsReady(ChannelStatus status);
-    void timeInfoIsReady(std::string elapsed, std::string remaining);
+    void finished();
 
 private:
-    void createThread();
+    void createNewTest();
 
 private:
     bool connection;
+    DCCHController* serial;
+    msu_smdt::Port DCCHPort;
+    TestConfiguration normal;
+    TestConfiguration reverse;
     TestParameters parameters;
-    QThread testThread;
+    
+    QThread* testThread;
     std::shared_ptr<QMutex> mutex;
-    std::shared_ptr<QSerialPort> port;
     std::shared_ptr<PSUController> controller;
     std::shared_ptr<spdlog::logger> logger;
 };
@@ -93,26 +88,49 @@ class Test : public QObject
     Q_OBJECT
 
 public:
-    explicit Test();
+    explicit Test(QObject* parent = nullptr);
     ~Test();
 
 public slots:
     void test(
         QMutex* mutex,
-        QSerialPort* port,
         PSUController* controller,
         std::vector<int> channels,
-        TestParameters parameters
+        TestParameters parameters,
+        TestConfiguration config
     );
+
     void stop();
 
 signals:
-    void returnChannelPolarity(int channel, int polarity);
+    void distributeChannelStatus(int channel, std::string status);
+    void distributeChannelPolarity(int channel, int polarity);
     void distributeTubeDataPacket(TubeData data);
-    void distributeChannelStatus(ChannelStatus status);
-    void distributeTimeInfo(std::string elapsedTime, std::string remainingTime);
+    void distributeTimeInfo(std::string remaining);
+
+    void connectTube(int tube);
+    void disconnectTube(int tube);
+
+    void finished();
 
 private:
+    std::vector<float> getIntrinsicCurrent(
+        std::vector<int>& channels,
+        PSUController* controller,
+        TestParameters& parameters
+    );
+
+    void collectData(
+        std::vector<int> ch,
+        PSUController* con,
+        std::vector<float>& voltages,
+        std::vector<float>& currents,
+        std::vector<std::string>& statuses
+    );
+    // void collectStatus(int channel, std::string& status);
+
+private:
+    // QSerialPort* port;
     QMutex loggerMutex;
     std::atomic<bool> stopFlag;
     std::shared_ptr<spdlog::logger> logger;

@@ -64,15 +64,24 @@ void ChannelWidget::setChannel(int channel)
     channelStatusBox->setTitle(QString::fromStdString(name + " - Status"));
 }
 
-void ChannelWidget::receiveChannelPolarity(int polarity)
+void ChannelWidget::setTestParameters(TestParameters params)
 {
+    this->parameters = params;
+    dataModel->setTestParameters(params);
+}
+
+void ChannelWidget::receiveChannelPolarity(int channel, int polarity)
+{
+    if (channel != this->channel)
+        return;
+
     if (this->polarity == "~")
     {
-        if (polarity < 0)
+        if (polarity > 0)
         {
             this->polarity = "-";
         }
-        else if (polarity > 0)
+        else if (polarity == 0)
         {
             this->polarity = "+";
         }
@@ -87,12 +96,15 @@ void ChannelWidget::receiveChannelPolarity(int polarity)
     }
 }
 
-void ChannelWidget::receiveTubeDataPacket(TubeData data)
+void ChannelWidget::receiveChannelStatus(int channel, std::string status)
 {
-    this->dataModel->storeTubeDataPacket(std::move(data));
+    if (channel != this->channel)
+        return;
+
+    channelStatus->setText(QString::fromStdString(status));
 }
 
-void ChannelWidget::fillWithFakeBarcodes()
+void ChannelWidget::receiveTubeDataPacket(TubeData data)
 {
-    this->dataModel->createFakeBarcodes();
+    dataModel->storeTubeDataPacket(data);
 }

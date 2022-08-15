@@ -3,6 +3,8 @@
 #include <QWidget>
 #include <QPushButton>
 
+#include "TestInfo.hpp"
+
 class ControlPanelWidget : public QWidget
 {
     Q_OBJECT
@@ -16,9 +18,7 @@ public slots:
 
 signals:
     void requestToConnect();
-    void requestToDisconnect();
     void requestToStart();
-    void requestToStop();
 
 private:
     QPushButton* connection;

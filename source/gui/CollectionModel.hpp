@@ -27,6 +27,8 @@ public:
 
     void setChannel(int channel);
 
+    void setTestParameters(TestParameters parameters);
+
     void storeTubeDataPacket(TubeData data);
     void createFakeBarcodes();
 

@@ -3,15 +3,15 @@
         "psu": {
             "port": "COM4",
             "baud_rate": "9600",
-            "data_bit": "0",
+            "data_bit": "8",
             "stop_bit": "0",
             "parity": "0",
             "lbusaddress": "0"
         },
         "hw": {
-            "port": "COM2",
+            "port": "/dev/tty.usbmodem123451",
             "baud_rate": "9600",
-            "data_bit": "0",
+            "data_bit": "8",
             "stop_bit": "0",
             "parity": "0",
             "lbusaddress": "0"
@@ -26,8 +26,8 @@
             "test_voltage": 3000,
             "current_limit": 2,
             "max_voltage": 4000,
-            "ramp_up_rate": 1000,
-            "ramp_down_rate": 1000,
+            "ramp_up_rate": 500,
+            "ramp_down_rate": 500,
             "over_current_limit": 1000,
             "power_down_method": 1
         },
@@ -35,16 +35,25 @@
             "test_voltage": 3000,
             "current_limit": 2,
             "max_voltage": 4000,
-            "ramp_up_rate": 1000,
-            "ramp_down_rate": 1000,
+            "ramp_up_rate": 500,
+            "ramp_down_rate": 500,
             "over_current_limit": 1000,
             "power_down_method": 1
         }
+    },
+
+    "channels": {
+        "normal": [0, 1],
+        "reverse": [2, 3]
     },
     
     "path": {
         "log": "",
         "csv": ""
+    },
+
+    "experimental": {
+        "test_with_all_channels": false
     },
     
     "debug": {}

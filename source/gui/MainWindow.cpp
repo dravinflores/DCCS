@@ -11,11 +11,17 @@
 #include <QHBoxLayout>
 #include <QFileDialog>
 
+#include <QMessageBox>
+#include <QErrorMessage>
+
+#include <QInputDialog>
+
 using json = nlohmann::json;
 
 MainWindow::MainWindow(QWidget* parent):
     QMainWindow(parent),
-    // controller { new TestController(this) },
+    hasStarted { false },
+    controller { new TestController(this) },
     channelWidgetContainer { new QWidget },
     controlPanelWidget { new ControlPanelWidget },
     channelWidgetLeft { new ChannelWidget },
@@ -54,20 +60,146 @@ MainWindow::MainWindow(QWidget* parent):
     channelWidgetRight->receiveChannelPolarity(+1);
     */
 
-    readInTestSettings();
+    QObject::connect(
+        controlPanelWidget, 
+        &ControlPanelWidget::requestToConnect, 
+        this, 
+        &MainWindow::receiveRequestToConnect
+    );
+
+
+    QObject::connect(
+        controlPanelWidget, 
+        &ControlPanelWidget::requestToStart, 
+        this, 
+        &MainWindow::receiveRequestToStart
+    );
+
+    QObject::connect(
+        this,
+        &MainWindow::connectionStatusChanged,
+        controlPanelWidget,
+        &ControlPanelWidget::connectionChanged
+    );
+
+    QObject::connect(
+        this,
+        &MainWindow::executionStatusChanged,
+        controlPanelWidget,
+        &ControlPanelWidget::executionChanged
+    );
+
+    QObject::connect(
+        this,
+        &MainWindow::start,
+        controller,
+        &TestController::start
+    );
+
+    QObject::connect(
+        this,
+        &MainWindow::stop,
+        controller,
+        &TestController::stop
+    );
+
+    // Now we need to connect the data.
+    QObject::connect(
+        controller,
+        &TestController::distributeTubeDataPacket,
+        channelWidgetLeft,
+        &ChannelWidget::receiveTubeDataPacket
+    );
+
+    QObject::connect(
+        controller,
+        &TestController::distributeTubeDataPacket,
+        channelWidgetRight,
+        &ChannelWidget::receiveTubeDataPacket
+    );
+
+    QObject::connect(
+        controller,
+        &TestController::distributeChannelPolarity,
+        channelWidgetLeft,
+        &ChannelWidget::receiveChannelPolarity
+    );
+
+    QObject::connect(
+        controller,
+        &TestController::distributeChannelPolarity,
+        channelWidgetRight,
+        &ChannelWidget::receiveChannelPolarity
+    );
+
+    QObject::connect(
+        controller,
+        &TestController::distributeChannelStatus,
+        channelWidgetLeft,
+        &ChannelWidget::receiveChannelStatus
+    );
+
+    QObject::connect(
+        controller,
+        &TestController::distributeChannelStatus,
+        channelWidgetRight,
+        &ChannelWidget::receiveChannelStatus
+    );
+
+    QObject::connect(
+        controller,
+        &TestController::distributeTimeInfo,
+        [this](std::string time) {
+            testStatusWidget->receiveTimeRemaining(time);
+            // testStatusWidget->update();
+        }
+    );
+
+    QObject::connect(
+        this,
+        &MainWindow::start,
+        [this]() {
+            testStatusWidget->startTime();
+            testStatusWidget->update();
+        }
+    );
+
+    QObject::connect(
+        this,
+        &MainWindow::stop,
+        [this]() {
+            testStatusWidget->stopTime();
+        }
+    );
+
+    QObject::connect(
+        controller,
+        &TestController::finished,
+        [this]() {
+            testStatusWidget->stopTime();
+        }
+    );
+
+    QObject::connect(
+        controller,
+        &TestController::finished,
+        [this]() {
+            // controlPanelWidget->executionChanged(false);
+            receiveRequestToStart();
+        }
+    );
 }
 
 MainWindow::~MainWindow()
 {}
 
-void MainWindow::readInTestSettings()
+bool MainWindow::readInTestSettings()
 {
     auto file = QFileDialog::getOpenFileName(this, "Configuration File (JSON)").toStdString();
     bool no_config = file.empty();
 
     if (no_config)
-        return;
-
+        return false;
 
     json config;
     try
@@ -78,7 +210,7 @@ void MainWindow::readInTestSettings()
     catch(const std::exception& e)
     {
         logger->error("Unable to parse file. Returning");
-        return;
+        return false;
     }
 
     msu_smdt::Port HWPort;
@@ -105,6 +237,7 @@ void MainWindow::readInTestSettings()
     catch (std::exception & ex)
     {
         logger->error("Cannot obtain PSU port information");
+        return false;
     }
 
     try
@@ -128,6 +261,7 @@ void MainWindow::readInTestSettings()
     catch (std::exception& ex)
     {
         logger->error("Cannot obtain HW port information");
+        return false;
     }
 
     TestParameters parameters;
@@ -142,12 +276,11 @@ void MainWindow::readInTestSettings()
             tubes_per_channel,
             time_for_testing_voltage
         };
-
-        // controller->setTestingParameters(parameters);
     }
     catch (std::exception& ex)
     {
         logger->error("Cannot obtain test parameters from file");
+        return false;
     }
 
     TestConfiguration normalConfig;
@@ -193,26 +326,130 @@ void MainWindow::readInTestSettings()
     catch (std::exception& ex)
     {
         logger->error("Cannot obtain test initial conditions from file");
+        return false;
     }
 
-    this->PSUPort = std::move(PSUPort);
-    this->HWPort = std::move(HWPort);
-    this->parameters = std::move(parameters);
-    this->normalConfig = std::move(normalConfig);
-    this->reverseConfig = std::move(reverseConfig);
+    try
+    {
+        std::vector<int> normalChannels = config["channels"]["normal"].get<std::vector<int>>();
+        std::vector<int> reverseChannels = config["channels"]["reverse"].get<std::vector<int>>();
+
+        this->normalChannels = normalChannels;
+        this->reverseChannels = reverseChannels;
+    }
+    catch (std::exception& ex)
+    {
+        logger->error("Cannot obtain Normal and Reverse channels");
+        return false;
+    }
+
+    // this->PSUPort = std::move(PSUPort);
+    // this->HWPort = std::move(HWPort);
+    // this->parameters = std::move(parameters);
+    // this->normalConfig = std::move(normalConfig);
+    // this->reverseConfig = std::move(reverseConfig);
+
+    this->PSUPort = PSUPort;
+    this->HWPort = HWPort;
+    this->parameters = parameters;
+    this->normalConfig = normalConfig;
+    this->reverseConfig = reverseConfig;
+
+    // bool TestWithAllChannels = config["experimental"]["test_with_all_channels"].get<bool>();
+
+    return true;
 }
 
-void MainWindow::receiveRequestToConnect()
-{}
+void MainWindow::raiseAlert(std::string msg)
+{
+    QMessageBox messageBox;
+    messageBox.setText(msg.c_str());
+    messageBox.exec();
+}
 
-void MainWindow::receiveRequestToDisconnect()
-{}
+
+void MainWindow::receiveRequestToConnect()
+{
+    if (controller->checkConnection() && !hasStarted)
+    {
+        controller->disconnect();
+        emit connectionStatusChanged(false);
+        testStatusWidget->updateConnectionStatus(false);
+    }
+    else if (hasStarted)
+    {
+        raiseAlert("Cannot disconnect while testing");
+    }
+    else
+    {
+        bool r = readInTestSettings();
+        controller->connect(PSUPort, HWPort);
+        controller->setTestParameters(this->parameters);
+        channelWidgetLeft->setTestParameters(this->parameters);
+        channelWidgetRight->setTestParameters(this->parameters);
+
+        controller->initializeTestConfiguration(this->normalConfig, this->reverseConfig);
+        emit connectionStatusChanged(true);
+        testStatusWidget->updateConnectionStatus(true);
+    }
+}
 
 void MainWindow::receiveRequestToStart()
-{}
+{
+    if (hasStarted)
+    {
+        // controller->stop();
+        emit stop();
+        emit executionStatusChanged(false);
+        hasStarted = false;
+    }
+    else
+    {
+        hasStarted = true;
 
-void MainWindow::receiveRequestToStop()
-{}
+        bool mode = false;
+        
+        bool ok = false;
+        QStringList testTypesAvailable;
+        testTypesAvailable << "Normal" << "Reverse";
+        QString item = QInputDialog::getItem(
+            this, 
+            "Get Test Type", 
+            "Test Type:", 
+            testTypesAvailable, 
+            0, 
+            false, 
+            &ok, 
+            Qt::MSWindowsFixedSizeDialogHint
+        );
 
-void MainWindow::alertUser()
-{}
+        std::vector<int> v;
+
+        if (ok && !item.isEmpty())
+        {
+            if (item == "Normal")
+            {
+                mode = true;
+                v = normalChannels;
+            }
+            else
+            {
+                mode = false;
+                v = reverseChannels;
+            }
+
+            channelWidgetLeft->setChannel(v[0]);
+            channelWidgetRight->setChannel(v[1]);
+
+            emit executionStatusChanged(true);
+            // controller->start(v, mode);
+            emit start(v, mode);
+        }
+    }
+}
+
+void MainWindow::alertUser(std::string msg)
+{
+    QErrorMessage messageBox;
+    messageBox.showMessage(msg.c_str());
+}

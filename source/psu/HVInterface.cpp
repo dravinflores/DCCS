@@ -2,6 +2,9 @@
 
 #include <exception>
 
+#include <fmt/core.h>
+#include <fmt/ranges.h>
+
 #include <spdlog/spdlog.h>
 #include <spdlog/sinks/stdout_color_sinks.h>
 
@@ -35,7 +38,7 @@ static std::vector<unsigned short> convert(std::vector<int> channels)
     if (channels.size() > 4)
         throw std::runtime_error("Too Many Channels. Expected 4.");
 
-    if (channels.size() < 1)
+    if (channels.size() < 0)
         throw std::runtime_error("Too Few Channels. Expected At Least 1.");
 
     std::vector<unsigned short> convertedChannels;
@@ -217,8 +220,9 @@ static std::vector<T> getParameters(std::string parameter, CHVector channels, Sp
 
     if (result)
     {
-        std::string msg = "GetChannelParameter Error ";
-        msg += std::to_string(result) + ": ";
+        std::string msg = "GetChannelParameter Error [";
+        msg += std::to_string(result) + "] for parameter [";
+        msg += parameter + "]: ";
         msg += GetError(handle);
 
         if (logger)
@@ -227,6 +231,7 @@ static std::vector<T> getParameters(std::string parameter, CHVector channels, Sp
         throw std::runtime_error(msg);
     }
 
+    /*
     std::string msg = "Parameter " + parameter + " received: ( ";
     for (int i = 0; i < channelListSize; ++i)
     {
@@ -236,6 +241,10 @@ static std::vector<T> getParameters(std::string parameter, CHVector channels, Sp
 
     if (logger)
         logger->debug(msg);
+
+    */
+
+    logger->debug("Parameter \'{}\' received: [ {} ]", parameter, fmt::join(returnVector, ", "));
 
     return returnVector;
 }

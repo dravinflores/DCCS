@@ -36,9 +36,9 @@ struct TestConfiguration
 {
     int testVoltage { 0 };
     int currentLimit { 0 };
-    int maxVoltage { 0 };
-    int rampUpRate { 0 };
-    int rampDownRate { 0 };
+    int maxVoltage { 1 };
+    int rampUpRate { 1 };
+    int rampDownRate { 1 };
     int overCurrentLimit { 0 };
     int powerDownMethod { 0 };
 };

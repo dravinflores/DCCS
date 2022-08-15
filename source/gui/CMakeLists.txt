@@ -5,6 +5,8 @@ target_sources(
         CollectionModel.hpp
         TestController.cpp
         TestController.hpp
+        DCCHController.cpp
+        DCCHController.hpp
         TestInfo.hpp
         ChannelWidget.cpp
         ChannelWidget.hpp

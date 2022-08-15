@@ -33,9 +33,12 @@ public:
 
     void setChannel(int channel);
 
-    void receiveChannelPolarity(int polarity);
+    void setTestParameters(TestParameters params);
+
+public slots:
+    void receiveChannelPolarity(int channel, int polarity);
+    void receiveChannelStatus(int channel, std::string status);
     void receiveTubeDataPacket(TubeData data);
-    void fillWithFakeBarcodes();
 
 signals:
     void issueAlert(std::string msg);
