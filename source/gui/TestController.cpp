@@ -394,6 +394,9 @@ void Test::test(
     auto elapsedTime = fmt::format("{} s", s);
     auto remainingTime = fmt::format("{} s", s);
 
+    controller->powerOnChannels(channels);
+    QThread::sleep(rampTime);
+
     for (int i = 0; i < parameters.tubesPerChannel; ++i)
     {
         if (stopFlag)
@@ -448,7 +451,10 @@ void Test::test(
     }
 
     for (int tube = 0; tube < numberOfTubesConnected; ++tube)
-        disconnectTube(tube);
+        emit disconnectTube(tube);
+
+    controller->powerOffChannels(channels);
+    QThread::sleep(rampTime);
 
     emit finished();
     logger->info("Test is complete");

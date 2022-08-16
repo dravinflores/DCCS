@@ -419,8 +419,12 @@ void MainWindow::receiveRequestToStart()
             testTypesAvailable, 
             0, 
             false, 
+        #ifdef Q_OS_WIN
             &ok, 
             Qt::MSWindowsFixedSizeDialogHint
+        #else
+            &ok
+        #endif
         );
 
         std::vector<int> v;

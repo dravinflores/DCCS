@@ -49,6 +49,9 @@ void DCCHController::setPort(msu_smdt::Port DCCHPort)
     port->setBaudRate(std::stoi(DCCHPort.baud_rate));
     port->setDataBits(QSerialPort::Data8);
 
+    buf[0] = '{';
+    buf[3] = '}';
+
     if (!port->open(QIODeviceBase::ReadWrite))
     {
         logger->error("Cannot connect to DCCH Board [FATAL]: {}", port->errorString().toStdString());
