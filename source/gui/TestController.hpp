@@ -58,6 +58,7 @@ signals:
 
     void executeTestInThread(
         QMutex* mutex,
+        msu_smdt::Port DCCHPort,
         PSUController* controller,
         std::vector<int> channels,
         TestParameters parameters,
@@ -71,7 +72,7 @@ private:
 
 private:
     bool connection;
-    DCCHController* serial;
+    // DCCHController* serial;
     msu_smdt::Port DCCHPort;
     TestConfiguration normal;
     TestConfiguration reverse;
@@ -94,6 +95,7 @@ public:
 public slots:
     void test(
         QMutex* mutex,
+        msu_smdt::Port DCCHPort,
         PSUController* controller,
         std::vector<int> channels,
         TestParameters parameters,

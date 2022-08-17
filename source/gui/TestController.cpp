@@ -35,7 +35,7 @@ constexpr int timeout = 30000;
 
 TestController::TestController(QObject* parent):
     connection { false },
-    serial { new DCCHController },
+    // serial { new DCCHController },
     testThread { new QThread },
     mutex { std::make_shared<QMutex>() },
     controller { std::make_shared<PSUController>() },
@@ -122,8 +122,8 @@ bool TestController::connect(msu_smdt::Port PSUPort, msu_smdt::Port DCCHPort)
     {
         logger->debug("Connecting to PSU");
         controller->connectToPSU(PSUPort);
-        // this->DCCHPort = DCCHPort;
-        serial->setPort(DCCHPort);
+        this->DCCHPort = DCCHPort;
+        // serial->setPort(DCCHPort);
     }
     catch (const std::exception& ex)
     {
@@ -157,6 +157,7 @@ void TestController::createNewTest()
 {
     if (testThread->isRunning())
     {
+        emit finished();
         testThread->quit();
         testThread->wait();
     }
@@ -226,8 +227,8 @@ void TestController::createNewTest()
         &Test::test
     );
 
-    QObject::connect(test, &Test::connectTube, serial, &DCCHController::connectTube);
-    QObject::connect(test, &Test::disconnectTube, serial, &DCCHController::disconnectTube);
+    // QObject::connect(test, &Test::connectTube, serial, &DCCHController::connectTube);
+    // QObject::connect(test, &Test::disconnectTube, serial, &DCCHController::disconnectTube);
 
     QObject::connect(
         test,
@@ -261,6 +262,7 @@ void TestController::start(std::vector<int> channels, bool mode)
 
     emit executeTestInThread(
         mutex.get(),
+        DCCHPort,
         controller.get(),
         channels,
         parameters,
@@ -346,6 +348,7 @@ void Test::stop()
 
 void Test::test(
     QMutex* mutex,
+    msu_smdt::Port DCCHPort,
     PSUController* controller,
     std::vector<int> channels,
     TestParameters parameters,
@@ -362,6 +365,8 @@ void Test::test(
     QElapsedTimer timer;
     timer.start();
 
+    DCCHController serial(this, DCCHPort);
+
     int rampTime = config.testVoltage / config.rampUpRate;
 
     std::vector<int> physicalTubeNumber(channels.size());
@@ -375,7 +380,7 @@ void Test::test(
     int numberOfTubesConnected = parameters.tubesPerChannel * channels.size();
 
     for (int tube = 0; tube < numberOfTubesConnected; ++tube)
-        emit disconnectTube(tube);
+        serial.disconnectTube(tube);
 
     if (stopFlag)
         return;
@@ -408,7 +413,7 @@ void Test::test(
                 break;
 
             physicalTubeNumber[k] = (parameters.tubesPerChannel * k) + i;
-            emit connectTube(physicalTubeNumber[k]);
+            serial.connectTube(physicalTubeNumber[k]);
         }
 
         for (int t = 0; t < parameters.secondsPerTube; ++t)
@@ -444,14 +449,14 @@ void Test::test(
 
         for (int k = 0; k < channels.size(); ++k)
         {
-            emit disconnectTube(physicalTubeNumber[k]);
+            serial.disconnectTube(physicalTubeNumber[k]);
             data[k].isActive = false;
             emit distributeTubeDataPacket(data[k]);
         }
     }
 
     for (int tube = 0; tube < numberOfTubesConnected; ++tube)
-        emit disconnectTube(tube);
+        serial.disconnectTube(tube);
 
     controller->powerOffChannels(channels);
     QThread::sleep(rampTime);

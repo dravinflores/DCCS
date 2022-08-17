@@ -176,18 +176,24 @@ MainWindow::MainWindow(QWidget* parent):
         controller,
         &TestController::finished,
         [this]() {
-            testStatusWidget->stopTime();
+            // testStatusWidget->stopTime();
+            emit stop();
+            controlPanelWidget->executionChanged(false);
+            hasStarted = false;
         }
     );
 
+    /*
     QObject::connect(
         controller,
         &TestController::finished,
         [this]() {
-            // controlPanelWidget->executionChanged(false);
-            receiveRequestToStart();
+            controlPanelWidget->executionChanged(false);
+            hasStarted = false;
+            // receiveRequestToStart();
         }
     );
+    */
 }
 
 MainWindow::~MainWindow()
@@ -398,15 +404,13 @@ void MainWindow::receiveRequestToStart()
 {
     if (hasStarted)
     {
-        // controller->stop();
         emit stop();
-        emit executionStatusChanged(false);
+        controlPanelWidget->executionChanged(false);
         hasStarted = false;
     }
     else
     {
         hasStarted = true;
-
         bool mode = false;
         
         bool ok = false;
@@ -419,12 +423,8 @@ void MainWindow::receiveRequestToStart()
             testTypesAvailable, 
             0, 
             false, 
-        #ifdef Q_OS_WIN
             &ok, 
             Qt::MSWindowsFixedSizeDialogHint
-        #else
-            &ok
-        #endif
         );
 
         std::vector<int> v;
@@ -446,7 +446,6 @@ void MainWindow::receiveRequestToStart()
             channelWidgetRight->setChannel(v[1]);
 
             emit executionStatusChanged(true);
-            // controller->start(v, mode);
             emit start(v, mode);
         }
     }

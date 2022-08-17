@@ -16,8 +16,24 @@ ControlPanelWidget::ControlPanelWidget(QWidget* parent):
     layout->setAlignment(Qt::AlignCenter);
     setLayout(layout);
 
-    connect(connection, &QPushButton::clicked, this, &ControlPanelWidget::requestToConnect);
-    connect(execution, &QPushButton::clicked, this, &ControlPanelWidget::requestToStart);
+    // connect(connection, &QPushButton::clicked, this, &ControlPanelWidget::requestToConnect);
+    // connect(execution, &QPushButton::clicked, this, &ControlPanelWidget::requestToStart);
+
+    connect(
+        connection,
+        &QPushButton::clicked,
+        [this]() {
+            emit requestToConnect();
+        }
+    );
+
+    connect(
+        execution,
+        &QPushButton::clicked,
+        [this]() {
+            emit requestToStart();
+        }
+    );
 }
 
 void ControlPanelWidget::connectionChanged(bool status)
