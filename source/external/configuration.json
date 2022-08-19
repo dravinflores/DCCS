@@ -43,8 +43,8 @@
     },
 
     "channels": {
-        "normal": [0, 1],
-        "reverse": [2, 3]
+        "normal": [ 0, 1 ],
+        "reverse": [ 2, 3 ]
     },
     
     "path": {

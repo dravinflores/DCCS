@@ -80,9 +80,9 @@ void TestController::initializeTestConfiguration(TestConfiguration normal, TestC
     for (int i = 0; i < 4; ++i)
     {
         if (polarities[i])
-            normalChannels.push_back(i);
-        else
             reverseChannels.push_back(i);
+        else
+            normalChannels.push_back(i);
     }
 
     try
@@ -357,6 +357,8 @@ void Test::test(
 {
     logger->info("Starting Test");
 
+    constexpr int delay = 250;
+
     if (stopFlag)
         return;
 
@@ -369,6 +371,9 @@ void Test::test(
 
     int rampTime = config.testVoltage / config.rampUpRate;
 
+    if (rampTime < 1)
+        rampTime = 1;
+
     std::vector<int> physicalTubeNumber(channels.size());
 
     // We're going to share data storage, in order to save.
@@ -380,7 +385,10 @@ void Test::test(
     int numberOfTubesConnected = parameters.tubesPerChannel * channels.size();
 
     for (int tube = 0; tube < numberOfTubesConnected; ++tube)
+    {
         serial.disconnectTube(tube);
+        QThread::msleep(delay);
+    }
 
     if (stopFlag)
         return;
@@ -390,7 +398,7 @@ void Test::test(
     for (int k = 0; k < channels.size(); ++k)
         emit distributeChannelPolarity(channels[k], polarities[k]);
 
-    auto currentOffset = getIntrinsicCurrent(channels, controller, parameters);
+    auto currentOffset = getIntrinsicCurrent(channels, controller, parameters, rampTime);
 
     if (stopFlag)
         return;
@@ -399,8 +407,8 @@ void Test::test(
     auto elapsedTime = fmt::format("{} s", s);
     auto remainingTime = fmt::format("{} s", s);
 
-    controller->powerOnChannels(channels);
-    QThread::sleep(rampTime);
+    // controller->powerOnChannels(channels);
+    // QThread::sleep(rampTime);
 
     for (int i = 0; i < parameters.tubesPerChannel; ++i)
     {
@@ -414,6 +422,7 @@ void Test::test(
 
             physicalTubeNumber[k] = (parameters.tubesPerChannel * k) + i;
             serial.connectTube(physicalTubeNumber[k]);
+            QThread::msleep(delay);
         }
 
         for (int t = 0; t < parameters.secondsPerTube; ++t)
@@ -450,13 +459,17 @@ void Test::test(
         for (int k = 0; k < channels.size(); ++k)
         {
             serial.disconnectTube(physicalTubeNumber[k]);
+            QThread::msleep(delay);
             data[k].isActive = false;
             emit distributeTubeDataPacket(data[k]);
         }
     }
 
     for (int tube = 0; tube < numberOfTubesConnected; ++tube)
+    {
         serial.disconnectTube(tube);
+        QThread::msleep(delay);
+    }
 
     controller->powerOffChannels(channels);
     QThread::sleep(rampTime);
@@ -468,25 +481,30 @@ void Test::test(
 std::vector<float> Test::getIntrinsicCurrent(
     std::vector<int>& channels,
     PSUController* controller,
-    TestParameters& parameters
+    TestParameters& parameters,
+    int rampTime
 )
 {
     logger->info("Performing offset calculation for channels: [ {} ]", fmt::join(channels, ", "));
 
     std::vector<float> currentOffsets(channels.size(), 0.00f);
-    std::vector<float> testVoltages(channels.size(), 0.00f);
+    // std::vector<float> testVoltages(channels.size(), 0.00f);
 
-    testVoltages = controller->getTestVoltages(channels);
-    controller->setTestVoltages(channels, 0.00f);
+    // testVoltages = controller->getTestVoltages(channels);
+    // controller->setTestVoltages(channels, 0.00f);
     controller->powerOnChannels(channels);
+    QThread::sleep(rampTime);
     QThread::sleep(parameters.timeForTestingVoltage);
     currentOffsets = controller->readCurrents(channels);
-    controller->powerOffChannels(channels);
+    // controller->powerOffChannels(channels);
+
+    for (auto& i : currentOffsets)
+        i *= 1E3;
 
     logger->info("Offset are: [ {} ]", fmt::join(currentOffsets, ", "));
 
-    for (int k = 0; k < channels.size(); ++k)
-        controller->setTestVoltages({ k }, testVoltages[k]);
+    // for (int k = 0; k < channels.size(); ++k)
+        // controller->setTestVoltages({ k }, testVoltages[k]);
 
     return currentOffsets;
 }
@@ -535,4 +553,7 @@ void Test::collectData(
 
     for (int i = 0; i < ch.size(); ++i)
         statuses[i] = interpretStatus(raw_statuses[i]);
+
+    for (auto& i : currents)
+        i *= 1E3;
 }

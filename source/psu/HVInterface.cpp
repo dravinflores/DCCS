@@ -179,7 +179,7 @@ static void setParameters(std::string parameter, T value, CHVector channels, Spd
         }
 
         std::string msg = \
-            "CH" + std::to_string(i) + ": "
+            "CH" + std::to_string(v[i]) + ": "
             + "Parameter " + parameter 
             + " was set to " + std::to_string(value);
 

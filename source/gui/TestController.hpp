@@ -119,7 +119,8 @@ private:
     std::vector<float> getIntrinsicCurrent(
         std::vector<int>& channels,
         PSUController* controller,
-        TestParameters& parameters
+        TestParameters& parameters,
+        int rampTime
     );
 
     void collectData(

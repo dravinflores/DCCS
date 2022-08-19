@@ -65,10 +65,10 @@ void DCCHController::connectTube(int tube)
 
     int r = port->write(buf.data(), buf.size());
 
+    while (port->waitForBytesWritten());
+
     if (!r)
-    {
         logger->error("Cannot enable tube through Serial. Error: {}", port->errorString().toStdString());
-    }
 
     logger->debug("Connected tube {}", tube);
 }
@@ -79,6 +79,8 @@ void DCCHController::disconnectTube(int tube)
     buf[2] = (char) 0;
 
     int r = port->write(buf.data(), buf.size());
+
+    while (port->waitForBytesWritten());
 
     if (!r)
     {
