@@ -57,6 +57,7 @@ signals:
     void alert(std::string message);
 
     void executeTestInThread(
+        bool mode,
         QMutex* mutex,
         msu_smdt::Port DCCHPort,
         PSUController* controller,
@@ -94,6 +95,7 @@ public:
 
 public slots:
     void test(
+        bool mode,
         QMutex* mutex,
         msu_smdt::Port DCCHPort,
         PSUController* controller,
@@ -116,6 +118,13 @@ signals:
     void finished();
 
 private:
+    void reverseTest(
+        std::vector<int>& channels,
+        PSUController* controller,
+        TestParameters& parameters,
+        DCCHController& serial
+    );
+
     std::vector<float> getIntrinsicCurrent(
         std::vector<int>& channels,
         PSUController* controller,

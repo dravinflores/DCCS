@@ -2,6 +2,7 @@
 
 #pragma once
 
+#include <map>
 #include <string>
 #include <vector>
 
@@ -31,6 +32,8 @@ public:
 
     void storeTubeDataPacket(TubeData data);
     void createFakeBarcodes();
+
+    std::map<std::string, TubeData> getDataForCSV();
 
 private:
     int channel;

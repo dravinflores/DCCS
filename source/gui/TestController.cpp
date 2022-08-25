@@ -254,13 +254,14 @@ void TestController::start(std::vector<int> channels, bool mode)
     TestConfiguration config;
 
     if (mode)
-        config = this->normal;
-    else
         config = this->reverse;
+    else
+        config = this->normal;
 
     testThread->start();
 
     emit executeTestInThread(
+        mode,
         mutex.get(),
         DCCHPort,
         controller.get(),
@@ -347,6 +348,7 @@ void Test::stop()
 }
 
 void Test::test(
+    bool mode,
     QMutex* mutex,
     msu_smdt::Port DCCHPort,
     PSUController* controller,
@@ -373,6 +375,13 @@ void Test::test(
 
     if (rampTime < 1)
         rampTime = 1;
+
+    if (mode)
+    {
+        reverseTest(channels, controller, parameters, serial);
+        emit finished();
+        return;
+    }
 
     std::vector<int> physicalTubeNumber(channels.size());
 
@@ -448,6 +457,8 @@ void Test::test(
                 data[k].voltage = voltages[k];
                 data[k].current = currents[k] + currentOffset[k];
 
+                data[k].intrinsicCurrent = currentOffset[channels[k]];
+
                 emit distributeTubeDataPacket(data[k]);
                 emit distributeChannelStatus(data[k].channel, statuses[k]);
                 emit distributeTimeInfo(remainingTime);
@@ -504,7 +515,7 @@ std::vector<float> Test::getIntrinsicCurrent(
     logger->info("Offset are: [ {} ]", fmt::join(currentOffsets, ", "));
 
     // for (int k = 0; k < channels.size(); ++k)
-        // controller->setTestVoltages({ k }, testVoltages[k]);
+    // controller->setTestVoltages({ k }, testVoltages[k]);
 
     return currentOffsets;
 }
@@ -556,4 +567,62 @@ void Test::collectData(
 
     for (auto& i : currents)
         i *= 1E3;
+}
+
+void Test::reverseTest(
+    std::vector<int>& channels,
+    PSUController* controller,
+    TestParameters& parameters,
+    DCCHController& serial
+)
+{
+    logger->debug("REVERSE");
+
+    int delay = 250;
+
+    std::vector<int> physicalTubeNumber(channels.size());
+
+    // We're going to share data storage, in order to save.
+    std::vector<TubeData> data(channels.size());
+    std::vector<float> currents(channels.size(), -1.00f);
+    std::vector<float> voltages(channels.size(), -1.00f);
+    std::vector<std::string> statuses(channels.size(), interpretStatus(0xFFFFFFFF));
+
+    for (int i = 0; i < parameters.tubesPerChannel; ++i)
+    {
+        if (stopFlag)
+            break;
+
+        for (int k = 0; k < channels.size(); ++k)
+        {
+            if (stopFlag)
+                break;
+
+            physicalTubeNumber[k] = (parameters.tubesPerChannel * k) + i;
+            serial.connectTube(physicalTubeNumber[k]);
+            QThread::msleep(delay);
+        }
+    }
+
+    controller->powerOnChannels(channels);
+
+    while (!stopFlag);
+
+    for (int i = 0; i < parameters.tubesPerChannel; ++i)
+    {
+        if (stopFlag)
+            break;
+
+        for (int k = 0; k < channels.size(); ++k)
+        {
+            if (stopFlag)
+                break;
+
+            physicalTubeNumber[k] = (parameters.tubesPerChannel * k) + i;
+            serial.disconnectTube(physicalTubeNumber[k]);
+            QThread::msleep(delay);
+        }
+    }
+
+    controller->powerOffChannels(channels);
 }

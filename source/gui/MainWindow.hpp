@@ -30,6 +30,8 @@ public:
 
     void raiseAlert(std::string msg);
 
+    void writeCSV();
+
 public slots:
     void alertUser(std::string msg);
 
@@ -60,6 +62,8 @@ private:
     TestStatusWidget* testStatusWidget;
 
     std::shared_ptr<spdlog::logger> logger;
+
+    std::string csv_path;
 
     // PSU-based members;
     msu_smdt::Port PSUPort;

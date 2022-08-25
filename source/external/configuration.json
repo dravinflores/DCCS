@@ -20,7 +20,7 @@
     
     "test": {
         "seconds_per_tube": 1,
-        "tubes_per_channel": 16,
+        "tubes_per_channel": 4,
         "time_for_testing_voltage": 10,
         "normal": {
             "test_voltage": 3000,
@@ -43,13 +43,13 @@
     },
 
     "channels": {
-        "normal": [ 0, 1 ],
-        "reverse": [ 2, 3 ]
+        "normal": [ 0, 2 ],
+        "reverse": [ 1, 3 ]
     },
     
     "path": {
         "log": "",
-        "csv": ""
+        "csv": "/"
     },
 
     "experimental": {

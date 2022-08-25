@@ -7,6 +7,8 @@
 #include <spdlog/sinks/stdout_color_sinks.h>
 #include <nlohmann/json.hpp>
 
+#include <QDateTime>
+
 #include <QVBoxLayout>
 #include <QHBoxLayout>
 #include <QFileDialog>
@@ -26,7 +28,8 @@ MainWindow::MainWindow(QWidget* parent):
     controlPanelWidget { new ControlPanelWidget },
     channelWidgetLeft { new ChannelWidget },
     channelWidgetRight { new ChannelWidget },
-    testStatusWidget { new TestStatusWidget }
+    testStatusWidget { new TestStatusWidget },
+    csv_path { "" }
 {
     try
     {
@@ -180,6 +183,8 @@ MainWindow::MainWindow(QWidget* parent):
             emit stop();
             controlPanelWidget->executionChanged(false);
             hasStarted = false;
+
+            writeCSV();
         }
     );
 
@@ -349,11 +354,15 @@ bool MainWindow::readInTestSettings()
         return false;
     }
 
-    // this->PSUPort = std::move(PSUPort);
-    // this->HWPort = std::move(HWPort);
-    // this->parameters = std::move(parameters);
-    // this->normalConfig = std::move(normalConfig);
-    // this->reverseConfig = std::move(reverseConfig);
+    try
+    {
+        this->csv_path = config["path"]["csv"].get<std::string>();
+        logger->debug("CSV PATH: {}", csv_path);
+    }
+    catch (std::exception& ex)
+    {
+        logger->error("Cannot obtain CSV Path");
+    }
 
     this->PSUPort = PSUPort;
     this->HWPort = HWPort;
@@ -433,12 +442,12 @@ void MainWindow::receiveRequestToStart()
         {
             if (item == "Normal")
             {
-                mode = true;
+                mode = false;
                 v = normalChannels;
             }
             else
             {
-                mode = false;
+                mode = true;
                 v = reverseChannels;
             }
 
@@ -455,4 +464,46 @@ void MainWindow::alertUser(std::string msg)
 {
     QErrorMessage messageBox;
     messageBox.showMessage(msg.c_str());
+}
+
+void MainWindow::writeCSV()
+{
+    auto filename = fmt::format(
+        "{}.csv",
+        QDateTime::currentDateTime().toString("dd_MM_yyyy_hh_mm_ss").toStdString()
+    );
+
+    // auto filename = "thing.csv";
+    auto f = csv_path + filename;
+    logger->debug("Writing csv {}", f);
+
+    auto leftData = channelWidgetLeft->getDataForCSV();
+    auto rightData = channelWidgetRight->getDataForCSV();
+
+    leftData.merge(rightData);
+
+    std::fstream csv;
+
+    csv.open(f, std::ios::out);
+
+    if (!csv)
+        logger->error("cannot open csv");
+
+    csv << "Barcode, Voltage [V], Current [nA], Intrinsic Current [nA], Channel" << std::endl;
+
+    for (auto& [key, val]: leftData)
+    {
+        auto str = fmt::format(
+            "{}, {}, {}, {}, {}",
+            key,
+            val.voltage,
+            val.current,
+            val.intrinsicCurrent,
+            val.channel
+        );
+        csv << str << std::endl;
+        // logger->debug(str);
+    }
+
+    csv.close();
 }

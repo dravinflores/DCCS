@@ -70,6 +70,11 @@ void ChannelWidget::setTestParameters(TestParameters params)
     dataModel->setTestParameters(params);
 }
 
+std::map<std::string, TubeData> ChannelWidget::getDataForCSV()
+{
+    return dataModel->getDataForCSV();
+}
+
 void ChannelWidget::receiveChannelPolarity(int channel, int polarity)
 {
     if (channel != this->channel)

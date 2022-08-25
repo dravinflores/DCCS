@@ -1,11 +1,14 @@
 #pragma once
 
+#include <map>
 #include <string>
 #include <memory>
 #include <utility>
 
+#include <QEvent>
 #include <QLabel>
 #include <QWidget>
+#include <QKeyEvent>
 #include <QGroupBox>
 #include <QGridLayout>
 
@@ -34,6 +37,8 @@ public:
     void setChannel(int channel);
 
     void setTestParameters(TestParameters params);
+
+    std::map<std::string, TubeData> getDataForCSV();
 
 public slots:
     void receiveChannelPolarity(int channel, int polarity);

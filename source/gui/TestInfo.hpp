@@ -11,6 +11,7 @@ struct TubeData
     bool isActive { false };
     float current { -1.00 };
     float voltage { -1.00 };
+    float intrinsicCurrent { -1.00 };
 };
 
 struct ChannelStatus

@@ -9,3 +9,5 @@ build/
 
 # Visual Studio, should we decide to use it
 .vs/
+
+.idea/

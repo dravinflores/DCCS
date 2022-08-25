@@ -138,18 +138,14 @@ bool CollectionModel::setData(const QModelIndex& index, const QVariant& value, i
 
     if (col == 1)
     {
-    #ifdef DEBUG
         auto str = value.toString().toStdString();
 
         if (str == "FAKES")
             createFakeBarcodes();
         else
-            barcodes[row] = str;
+            if (str != "")
+                barcodes[row] = str;
         return true;
-    #else
-        // Should validate this somehow?
-        barcodes[row] = value.toString().toStdString();
-    #endif
     }
 
     return false;
@@ -185,4 +181,17 @@ void CollectionModel::createFakeBarcodes()
         barcodes[i] = fmt::format("MSU0012{}", i);
 
     emit layoutChanged();
+}
+
+std::map<std::string, TubeData> CollectionModel::getDataForCSV()
+{
+    std::map<std::string, TubeData> data;
+
+    for (int i = 0; i < barcodes.size(); ++i)
+    {
+        if (barcodes[i] != "")
+            data[barcodes[i]] = internalData[i];
+    }
+
+    return data;
 }
