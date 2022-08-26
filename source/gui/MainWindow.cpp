@@ -22,6 +22,7 @@ using json = nlohmann::json;
 
 MainWindow::MainWindow(QWidget* parent):
     QMainWindow(parent),
+    testType { 0 },
     hasStarted { false },
     controller { new TestController(this) },
     channelWidgetContainer { new QWidget },
@@ -184,7 +185,8 @@ MainWindow::MainWindow(QWidget* parent):
             controlPanelWidget->executionChanged(false);
             hasStarted = false;
 
-            writeCSV();
+            if (testType > 0)
+                writeCSV();
         }
     );
 
@@ -370,6 +372,9 @@ bool MainWindow::readInTestSettings()
     this->normalConfig = normalConfig;
     this->reverseConfig = reverseConfig;
 
+    channelWidgetLeft->setTestParameters(parameters);
+    channelWidgetRight->setTestParameters(parameters);
+
     // bool TestWithAllChannels = config["experimental"]["test_with_all_channels"].get<bool>();
 
     return true;
@@ -398,6 +403,13 @@ void MainWindow::receiveRequestToConnect()
     else
     {
         bool r = readInTestSettings();
+
+        if (!r)
+        {
+            logger->error("Invalid config file");
+            return;
+        }
+
         controller->connect(PSUPort, HWPort);
         controller->setTestParameters(this->parameters);
         channelWidgetLeft->setTestParameters(this->parameters);
@@ -411,11 +423,13 @@ void MainWindow::receiveRequestToConnect()
 
 void MainWindow::receiveRequestToStart()
 {
+    logger->debug("BEGIN: hasStarted: {}", hasStarted);
+
     if (hasStarted)
     {
         emit stop();
-        controlPanelWidget->executionChanged(false);
-        hasStarted = false;
+        // controlPanelWidget->executionChanged(false);
+        // hasStarted = false;
     }
     else
     {
@@ -442,11 +456,13 @@ void MainWindow::receiveRequestToStart()
         {
             if (item == "Normal")
             {
+                testType = 1;
                 mode = false;
                 v = normalChannels;
             }
             else
             {
+                testType = -1;
                 mode = true;
                 v = reverseChannels;
             }
@@ -454,10 +470,13 @@ void MainWindow::receiveRequestToStart()
             channelWidgetLeft->setChannel(v[0]);
             channelWidgetRight->setChannel(v[1]);
 
-            emit executionStatusChanged(true);
+            controlPanelWidget->executionChanged(true);
+            // emit executionStatusChanged(true);
             emit start(v, mode);
         }
     }
+
+    logger->debug("END: hasStarted: {}", hasStarted);
 }
 
 void MainWindow::alertUser(std::string msg)

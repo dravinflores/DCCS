@@ -73,7 +73,6 @@ private:
 
 private:
     bool connection;
-    // DCCHController* serial;
     msu_smdt::Port DCCHPort;
     TestConfiguration normal;
     TestConfiguration reverse;
@@ -139,10 +138,8 @@ private:
         std::vector<float>& currents,
         std::vector<std::string>& statuses
     );
-    // void collectStatus(int channel, std::string& status);
 
 private:
-    // QSerialPort* port;
     QMutex loggerMutex;
     std::atomic<bool> stopFlag;
     std::shared_ptr<spdlog::logger> logger;

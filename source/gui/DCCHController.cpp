@@ -2,6 +2,8 @@
 
 #include "DCCHController.hpp"
 
+#ifndef Q_OS_WIN
+
 DCCHController::DCCHController(QObject* parent):
     QObject(parent),
     port { new QSerialPort },
@@ -87,3 +89,95 @@ void DCCHController::disconnectTube(int tube)
         logger->error("Cannot disable tube through Serial. Error: {}", port->errorString().toStdString());
     }
 }
+
+#else
+DCCHController::DCCHController(msu_smdt::Port DCCHPort):
+    connected { false },
+    buf(4, '*')
+{
+    try
+    {
+        logger = spdlog::stdout_color_mt("Serial");
+    }
+    catch (const spdlog::spdlog_ex& ex)
+    {
+        logger = spdlog::get("Serial");
+    }
+
+    handle = CreateFileA(
+        static_cast<LPCSTR>(DCCHPort.port.c_str()),
+        GENERIC_READ | GENERIC_WRITE,
+        FILE_SHARE_READ | FILE_SHARE_WRITE,
+        NULL,
+        OPEN_EXISTING,
+        FILE_ATTRIBUTE_NORMAL,
+        NULL
+    );
+
+    if (handle == INVALID_HANDLE_VALUE)
+    {
+        if (GetLastError() == ERROR_FILE_NOT_FOUND)
+            logger->error("Port {} not available", DCCHPort.port);
+        else
+            logger->error("Unknown Error");
+    }
+
+    DCB parameters { 0 };
+
+    if (!GetCommState(handle, &parameters))
+    {
+        logger->error("Cannot obtain parameters");
+    }
+    else
+    {
+        parameters.BaudRate = CBR_9600;
+        parameters.ByteSize = 8;
+        parameters.StopBits = ONESTOPBIT;
+        parameters.Parity = NOPARITY;
+        parameters.fDtrControl = DTR_CONTROL_ENABLE;
+
+        if (!SetCommState(handle, &parameters))
+        {
+            logger->error("Cannot set parameters");
+        }
+        else
+        {
+            this->connected = true;
+            PurgeComm(handle, PURGE_RXCLEAR | PURGE_TXCLEAR);
+            Sleep(2000);
+        }
+    }
+
+    buf[0] = '{';
+    buf[3] = '}';
+}
+
+DCCHController::~DCCHController()
+{
+    if (connected)
+        CloseHandle(handle);
+}
+
+void DCCHController::connectTube(int tube)
+{
+    buf[1] = (char) tube;
+    buf[2] = (char) 1;
+
+    DWORD bytesSent = 0;
+
+    if (!WriteFile(handle, (void*) buf.data(), buf.size(), &bytesSent, 0))
+        ClearCommError(handle, &error, &status);
+}
+
+void DCCHController::disconnectTube(int tube)
+{
+    buf[1] = (char) tube;
+    buf[2] = (char) 0;
+
+    DWORD bytesSent = 0;
+
+    if (!WriteFile(handle, (void*) buf.data(), buf.size(), &bytesSent, 0))
+        ClearCommError(handle, &error, &status);
+}
+
+#endif

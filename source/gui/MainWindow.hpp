@@ -46,6 +46,7 @@ signals:
     void stop();
 
 private:
+    int testType;
     bool hasStarted;
 
     std::vector<int> normalChannels;

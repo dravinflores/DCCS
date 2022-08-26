@@ -1,7 +1,5 @@
 // TestController.cpp
 
-#include <cstdlib> // for rand()
-
 #include <map>
 
 #include <QString>
@@ -35,7 +33,6 @@ constexpr int timeout = 30000;
 
 TestController::TestController(QObject* parent):
     connection { false },
-    // serial { new DCCHController },
     testThread { new QThread },
     mutex { std::make_shared<QMutex>() },
     controller { std::make_shared<PSUController>() },
@@ -369,7 +366,11 @@ void Test::test(
     QElapsedTimer timer;
     timer.start();
 
+#ifndef Q_OS_WIN
     DCCHController serial(this, DCCHPort);
+#else
+    DCCHController serial(DCCHPort);
+#endif
 
     int rampTime = config.testVoltage / config.rampUpRate;
 
@@ -400,7 +401,11 @@ void Test::test(
     }
 
     if (stopFlag)
+    {
+        emit finished();
+        logger->info("Test is complete");
         return;
+    }
 
     auto polarities = controller->readPolarities(channels);
 
@@ -410,7 +415,12 @@ void Test::test(
     auto currentOffset = getIntrinsicCurrent(channels, controller, parameters, rampTime);
 
     if (stopFlag)
+    {
+        emit finished();
+        controller->powerOffChannels(channels);
+        logger->info("Test is complete");
         return;
+    }
 
     int s = 0;
     auto elapsedTime = fmt::format("{} s", s);
@@ -457,7 +467,7 @@ void Test::test(
                 data[k].voltage = voltages[k];
                 data[k].current = currents[k] + currentOffset[k];
 
-                data[k].intrinsicCurrent = currentOffset[channels[k]];
+                data[k].intrinsicCurrent = currentOffset[k];
 
                 emit distributeTubeDataPacket(data[k]);
                 emit distributeChannelStatus(data[k].channel, statuses[k]);
