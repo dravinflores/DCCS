@@ -3,15 +3,15 @@
 #include <memory>
 #include <utility>
 
+#include <QObject>
+#include <QSerialPort>
+
 #include <spdlog/spdlog.h>
 
 #include <psu/Port.hpp>
 #include "TestInfo.hpp"
 
 #ifndef Q_OS_WIN
-
-#include <QObject>
-#include <QSerialPort>
 
 class DCCHController : public QObject
 {
