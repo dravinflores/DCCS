@@ -4,6 +4,8 @@
 
 ControlPanelWidget::ControlPanelWidget(QWidget* parent):
     QWidget(parent),
+    connected { false },
+    started { false },
     connection { new QPushButton("Connect") },
     execution { new QPushButton("Start/Stop") }
 {
@@ -16,14 +18,14 @@ ControlPanelWidget::ControlPanelWidget(QWidget* parent):
     layout->setAlignment(Qt::AlignCenter);
     setLayout(layout);
 
-    // connect(connection, &QPushButton::clicked, this, &ControlPanelWidget::requestToConnect);
-    // connect(execution, &QPushButton::clicked, this, &ControlPanelWidget::requestToStart);
-
     connect(
         connection,
         &QPushButton::clicked,
         [this]() {
-            emit requestToConnect();
+            if (connected)
+                emit userRequestsToDisconnect();
+            else
+                emit userRequestsToConnect();
         }
     );
 
@@ -31,31 +33,49 @@ ControlPanelWidget::ControlPanelWidget(QWidget* parent):
         execution,
         &QPushButton::clicked,
         [this]() {
-            emit requestToStart();
+            if (connected && !started)
+                emit userRequestsToStart();
+            else if (connected && started)
+                emit userRequestsToStop();
+            else
+                emit invalidUserRequest();
         }
     );
 }
 
-void ControlPanelWidget::connectionChanged(bool status)
+void ControlPanelWidget::receiveStopCommandFromTest()
 {
-    if (status)
+    execution->setText("Start");
+}
+
+void ControlPanelWidget::setConnectionState(bool state)
+{
+    if (state)
     {
+        connected = true;
         connection->setText("Disconnect");
-        execution->setText("Start");
         execution->setEnabled(true);
+        execution->setText("Start");
     }
     else
     {
+        connected = false;
         connection->setText("Connect");
-        execution->setText("Start/Stop");
         execution->setEnabled(false);
+        execution->setText("Start/Stop");
     }
 }
 
-void ControlPanelWidget::executionChanged(bool status)
+void ControlPanelWidget::setExecutionState(bool state)
 {
-    if (status)
+    if (state)
+    {
+        started = true;
         execution->setText("Stop");
+    }
     else
+    {
+        started = false;
         execution->setText("Start");
+    }
 }

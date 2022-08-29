@@ -8,6 +8,7 @@
 #include <spdlog/spdlog.h>
 
 #include <QWidget>
+#include <QLineEdit>
 #include <QMainWindow>
 
 #include <psu/Port.hpp>
@@ -58,6 +59,9 @@ private:
     QWidget* channelWidgetContainer;
 
     ControlPanelWidget* controlPanelWidget;
+
+    QLineEdit* userEntry;
+
     ChannelWidget* channelWidgetLeft;
     ChannelWidget* channelWidgetRight;
     TestStatusWidget* testStatusWidget;

@@ -12,15 +12,22 @@ class ControlPanelWidget : public QWidget
 public:
     ControlPanelWidget(QWidget* parent = nullptr);
 
-public slots:
-    void connectionChanged(bool status);
-    void executionChanged(bool status);
+    void receiveStopCommandFromTest();
+
+    void setConnectionState(bool state);
+    void setExecutionState(bool state);
 
 signals:
-    void requestToConnect();
-    void requestToStart();
+    void userRequestsToConnect();
+    void userRequestsToDisconnect();
+    void userRequestsToStart();
+    void userRequestsToStop();
+    void invalidUserRequest();
 
 private:
+    bool connected;
+    bool started;
+
     QPushButton* connection;
     QPushButton* execution;
 };

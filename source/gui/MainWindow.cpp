@@ -11,6 +11,7 @@
 
 #include <QVBoxLayout>
 #include <QHBoxLayout>
+#include <QFormLayout>
 #include <QFileDialog>
 
 #include <QMessageBox>
@@ -20,6 +21,9 @@
 
 using json = nlohmann::json;
 
+static bool testIsRunning = false;
+static bool connectedToPSU = false;
+
 MainWindow::MainWindow(QWidget* parent):
     QMainWindow(parent),
     testType { 0 },
@@ -27,6 +31,7 @@ MainWindow::MainWindow(QWidget* parent):
     controller { new TestController(this) },
     channelWidgetContainer { new QWidget },
     controlPanelWidget { new ControlPanelWidget },
+    userEntry { new QLineEdit },
     channelWidgetLeft { new ChannelWidget },
     channelWidgetRight { new ChannelWidget },
     testStatusWidget { new TestStatusWidget },
@@ -43,12 +48,21 @@ MainWindow::MainWindow(QWidget* parent):
 
     QVBoxLayout* layout = new QVBoxLayout;
     QHBoxLayout* channelWidgetLayout = new QHBoxLayout;
+    QFormLayout* nameLayout = new QFormLayout;
+
+    QWidget* nameWidget = new QWidget;
+    nameLayout->setFieldGrowthPolicy(QFormLayout::FieldsStayAtSizeHint);
+    nameLayout->setFormAlignment(Qt::AlignHCenter | Qt::AlignVCenter);
+    nameLayout->addRow("Name: ", userEntry);
+    userEntry->setPlaceholderText("User");
+    nameWidget->setLayout(nameLayout);
 
     channelWidgetLayout->addWidget(channelWidgetLeft);
     channelWidgetLayout->addWidget(channelWidgetRight);
     channelWidgetContainer->setLayout(channelWidgetLayout);
 
     layout->addWidget(controlPanelWidget);
+    layout->addWidget(nameWidget);
     layout->addWidget(channelWidgetContainer);
     layout->addWidget(testStatusWidget);
 
@@ -57,12 +71,6 @@ MainWindow::MainWindow(QWidget* parent):
     setCentralWidget(centralWidget);
 
     /*
-    channelWidgetLeft->setChannel(0);
-    channelWidgetRight->setChannel(1);
-
-    channelWidgetLeft->receiveChannelPolarity(-1);
-    channelWidgetRight->receiveChannelPolarity(+1);
-    */
 
     QObject::connect(
         controlPanelWidget, 
@@ -92,6 +100,8 @@ MainWindow::MainWindow(QWidget* parent):
         controlPanelWidget,
         &ControlPanelWidget::executionChanged
     );
+
+    */
 
     QObject::connect(
         this,
@@ -168,22 +178,28 @@ MainWindow::MainWindow(QWidget* parent):
         }
     );
 
+    /*
     QObject::connect(
         this,
         &MainWindow::stop,
         [this]() {
-            testStatusWidget->stopTime();
+            emit stop();
+            controlPanelWidget->executionChanged(false);
+            hasStarted = false;
+
+            if (testType > 0)
+                writeCSV();
         }
     );
+    */
 
     QObject::connect(
         controller,
         &TestController::finished,
         [this]() {
-            // testStatusWidget->stopTime();
             emit stop();
-            controlPanelWidget->executionChanged(false);
-            hasStarted = false;
+            testStatusWidget->stopTime();
+            controlPanelWidget->receiveStopCommandFromTest();
 
             if (testType > 0)
                 writeCSV();
@@ -198,6 +214,122 @@ MainWindow::MainWindow(QWidget* parent):
             controlPanelWidget->executionChanged(false);
             hasStarted = false;
             // receiveRequestToStart();
+        }
+    );
+    */
+
+
+    QObject::connect(
+        controlPanelWidget,
+        &ControlPanelWidget::userRequestsToConnect,
+        this,
+        [this]() {
+            bool canConnect = !controller->checkConnection();
+
+            if (canConnect)
+            {
+                if (!readInTestSettings())
+                {
+                    logger->error("Invalid config file");
+                    return;
+                }
+
+                controller->connect(PSUPort, HWPort);
+                controller->setTestParameters(this->parameters);
+                channelWidgetLeft->setTestParameters(this->parameters);
+                channelWidgetRight->setTestParameters(this->parameters);
+
+                controller->initializeTestConfiguration(this->normalConfig, this->reverseConfig);
+                testStatusWidget->updateConnectionStatus(true);
+
+                controlPanelWidget->setConnectionState(true);
+            }
+            else
+            {
+                controlPanelWidget->setConnectionState(false);
+            }
+        }
+    );
+
+    QObject::connect(
+        controlPanelWidget,
+        &ControlPanelWidget::userRequestsToDisconnect,
+        this,
+        [this]() {
+            bool canDisconnect = controller->checkConnection();
+
+            if (canDisconnect)
+            {
+                controller->disconnect();
+                testStatusWidget->updateConnectionStatus(false);
+                controlPanelWidget->setConnectionState(false);
+            }
+        }
+    );
+
+    QObject::connect(
+        controlPanelWidget,
+        &ControlPanelWidget::userRequestsToStart,
+        this,
+        [this]() {
+            bool mode = false;
+            bool ok = false;
+            QStringList testTypesAvailable;
+            testTypesAvailable << "Normal" << "Reverse";
+            QString item = QInputDialog::getItem(
+                this, 
+                "Get Test Type", 
+                "Test Type:", 
+                testTypesAvailable, 
+                0, 
+                false, 
+                &ok, 
+                Qt::MSWindowsFixedSizeDialogHint
+            );
+
+            std::vector<int> v;
+
+            if (ok && !item.isEmpty())
+            {
+                if (item == "Normal")
+                {
+                    testType = 1;
+                    mode = false;
+                    v = normalChannels;
+                }
+                else
+                {
+                    testType = -1;
+                    mode = true;
+                    v = reverseChannels;
+                }
+
+                channelWidgetLeft->setChannel(v[0]);
+                channelWidgetRight->setChannel(v[1]);
+
+                controlPanelWidget->setExecutionState(true);
+                emit start(v, mode);
+            }
+        }
+    );
+
+    QObject::connect(
+        controlPanelWidget,
+        &ControlPanelWidget::userRequestsToStop,
+        this,
+        [this]() {
+            emit stop();
+            controlPanelWidget->setExecutionState(false);
+            testStatusWidget->stopTime();
+        }
+    );
+
+    /*
+    QObject::connect(
+        controlPanelWidget,
+        &ControlPanelWidget::invalidUserRequest,
+        [this]() {
+            
         }
     );
     */
@@ -390,7 +522,9 @@ void MainWindow::raiseAlert(std::string msg)
 
 void MainWindow::receiveRequestToConnect()
 {
-    if (controller->checkConnection() && !hasStarted)
+    bool userWantsToDisconnect = controller->checkConnection() && !hasStarted;
+
+    if (userWantsToDisconnect)
     {
         controller->disconnect();
         emit connectionStatusChanged(false);
@@ -421,14 +555,17 @@ void MainWindow::receiveRequestToConnect()
     }
 }
 
+/*
 void MainWindow::receiveRequestToStart()
 {
     logger->debug("BEGIN: hasStarted: {}", hasStarted);
 
+    bool userWantsToStop = hasStarted;
+
     if (hasStarted)
     {
         emit stop();
-        // controlPanelWidget->executionChanged(false);
+        controlPanelWidget->executionChanged(false);
         // hasStarted = false;
     }
     else
@@ -471,12 +608,70 @@ void MainWindow::receiveRequestToStart()
             channelWidgetRight->setChannel(v[1]);
 
             controlPanelWidget->executionChanged(true);
-            // emit executionStatusChanged(true);
             emit start(v, mode);
         }
     }
 
     logger->debug("END: hasStarted: {}", hasStarted);
+}
+*/
+
+void MainWindow::receiveRequestToStart()
+{
+    bool userWantsToStart = !hasStarted;
+
+    if (userWantsToStart)
+    {
+        hasStarted = true;
+        bool mode = false;
+
+        bool ok = false;
+        QStringList testTypesAvailable;
+        testTypesAvailable << "Normal" << "Reverse";
+        QString item = QInputDialog::getItem(
+            this, 
+            "Get Test Type", 
+            "Test Type:", 
+            testTypesAvailable, 
+            0, 
+            false, 
+            &ok, 
+            Qt::MSWindowsFixedSizeDialogHint
+        );
+
+        std::vector<int> v;
+
+        if (ok && !item.isEmpty())
+        {
+            if (item == "Normal")
+            {
+                testType = 1;
+                mode = false;
+                v = normalChannels;
+            }
+            else
+            {
+                testType = -1;
+                mode = true;
+                v = reverseChannels;
+            }
+
+            channelWidgetLeft->setChannel(v[0]);
+            channelWidgetRight->setChannel(v[1]);
+
+            // controlPanelWidget->executionChanged(true);
+            emit start(v, mode);
+        }
+    }
+    else
+    {
+        emit stop();
+        // controlPanelWidget->executionChanged(false);
+        hasStarted = false;
+
+        if (testType > 0)
+            writeCSV();
+    }
 }
 
 void MainWindow::alertUser(std::string msg)
@@ -508,17 +703,18 @@ void MainWindow::writeCSV()
     if (!csv)
         logger->error("cannot open csv");
 
-    csv << "Barcode, Voltage [V], Current [nA], Intrinsic Current [nA], Channel" << std::endl;
+    csv << "Barcode, Voltage [V], Current [nA], Intrinsic Current [nA], Channel, User" << std::endl;
 
     for (auto& [key, val]: leftData)
     {
         auto str = fmt::format(
-            "{}, {}, {}, {}, {}",
+            "{}, {}, {}, {}, {}, {}",
             key,
             val.voltage,
             val.current,
             val.intrinsicCurrent,
-            val.channel
+            val.channel,
+            userEntry->text().toStdString()
         );
         csv << str << std::endl;
         // logger->debug(str);
