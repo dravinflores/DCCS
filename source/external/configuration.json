@@ -19,11 +19,11 @@
     },
     
     "test": {
-        "seconds_per_tube": 1,
+        "seconds_per_tube": 30,
         "tubes_per_channel": 16,
-        "time_for_testing_voltage": 10,
+        "time_for_testing_voltage": 30,
         "normal": {
-            "test_voltage": 3000,
+            "test_voltage": 3015,
             "current_limit": 2,
             "max_voltage": 4000,
             "ramp_up_rate": 500,

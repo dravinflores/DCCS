@@ -11,6 +11,9 @@ ControlPanelWidget::ControlPanelWidget(QWidget* parent):
 {
     execution->setEnabled(false);
 
+    connection->setCheckable(true);
+    execution->setCheckable(true);
+
     QHBoxLayout* layout = new QHBoxLayout;
 
     layout->addWidget(connection);
@@ -21,8 +24,10 @@ ControlPanelWidget::ControlPanelWidget(QWidget* parent):
     connect(
         connection,
         &QPushButton::clicked,
-        [this]() {
-            if (connected)
+        [this](bool checked) {
+            // checked => button pushed in.
+
+            if (checked)
                 emit userRequestsToDisconnect();
             else
                 emit userRequestsToConnect();
@@ -32,13 +37,13 @@ ControlPanelWidget::ControlPanelWidget(QWidget* parent):
     connect(
         execution,
         &QPushButton::clicked,
-        [this]() {
-            if (connected && !started)
-                emit userRequestsToStart();
-            else if (connected && started)
-                emit userRequestsToStop();
-            else
+        [this](bool checked) {
+            if (!connected)
                 emit invalidUserRequest();
+            else if (checked)
+                emit userRequestsToStart();
+            else
+                emit userRequestsToStop();  
         }
     );
 }

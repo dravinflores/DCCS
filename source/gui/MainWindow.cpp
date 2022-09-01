@@ -707,6 +707,7 @@ void MainWindow::writeCSV()
 
     for (auto& [key, val]: leftData)
     {
+        /*
         auto str = fmt::format(
             "{}, {}, {}, {}, {}, {}",
             key,
@@ -715,6 +716,17 @@ void MainWindow::writeCSV()
             val.intrinsicCurrent,
             val.channel,
             userEntry->text().toStdString()
+        );
+        */
+
+        auto str = fmt::format(
+            "{}, {}, {}, {}, {}, {}",
+            key,
+            val.current,
+            QDateTime::currentDateTime().toString("dd_MM_yyyy_hh_mm_ss").toStdString(),
+            val.voltage,
+            userEntry->text().toStdString(),
+            val.channel
         );
         csv << str << std::endl;
         // logger->debug(str);
