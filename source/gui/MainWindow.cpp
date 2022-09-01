@@ -682,6 +682,7 @@ void MainWindow::alertUser(std::string msg)
 
 void MainWindow::writeCSV()
 {
+#ifdef COMMENT
     auto filename = fmt::format(
         "{}.csv",
         QDateTime::currentDateTime().toString("dd_MM_yyyy_hh_mm_ss").toStdString()
@@ -703,7 +704,8 @@ void MainWindow::writeCSV()
     if (!csv)
         logger->error("cannot open csv");
 
-    csv << "Barcode, Voltage [V], Current [nA], Intrinsic Current [nA], Channel, User" << std::endl;
+    // csv << "Barcode, Voltage [V], Current [nA], Intrinsic Current [nA], Channel, User" << std::endl;
+    csv << "Barcode, Current [nA], Date, Voltage [V], User, Channel, Intrinsic Current [nA]" << std::endl;
 
     for (auto& [key, val]: leftData)
     {
@@ -726,11 +728,42 @@ void MainWindow::writeCSV()
             QDateTime::currentDateTime().toString("dd_MM_yyyy_hh_mm_ss").toStdString(),
             val.voltage,
             userEntry->text().toStdString(),
-            val.channel
+            val.channel,
+            val.intrinsicCurrent
         );
         csv << str << std::endl;
         // logger->debug(str);
     }
 
     csv.close();
+#endif // COMMENT
+
+    auto leftData = channelWidgetLeft->getDataForCSV();
+    auto rightData = channelWidgetRight->getDataForCSV();
+
+    leftData.merge(rightData);
+
+    std::fstream csv;
+
+    for (auto& [key, val]: leftData)
+    {
+        auto filename = key + ".csv";
+        auto f = csv_path + "/" + filename;
+
+        csv.open(f, std::ios::out);
+
+        auto str = fmt::format(
+            "{}, {}, {}, {}, {}, {}",
+            key,
+            val.current,
+            QDateTime::currentDateTime().toString("dd_MM_yyyy_hh_mm_ss").toStdString(),
+            val.voltage,
+            userEntry->text().toStdString(),
+            val.channel,
+            val.intrinsicCurrent
+        );
+
+        csv << str << std::endl;
+        csv.close();
+    }
 }
