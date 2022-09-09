@@ -1,4 +1,4 @@
-/*******************************************************************************
+/***********************************************************************************************************************
  *  File:           main.cpp
  *  Author(s):      Dravin Flores <dravinflores@gmail.com>
  *  Date Created:   16 December, 2021
@@ -10,42 +10,71 @@
  *  Workarounds:    
  * 
  *  Updates:
- ******************************************************************************/
+ **********************************************************************************************************************/
 
-#include <fmt/core.h>
+#include <QApplication>
+#include <QStyleFactory>
+#include <QDir>
 
-#include <psu/psu.hpp>
+#include <spdlog/spdlog.h>
+#include <spdlog/sinks/stdout_color_sinks.h>
+
+#define TEST_GUI
+#ifdef TEST_GUI
+    #include <QWidget>
+    #include <QVBoxLayout>
+
+    #include <gui/ChannelWidget.hpp>
+    #include <gui/TestStatusWidget.hpp>
+    #include <gui/ControlPanelWidget.hpp>
+    #include <gui/TestInfo.hpp>
+#endif
+
+#include <gui/MainWindow.hpp>
+
+#ifdef NO_GUI
+    #include "test/manual/test.hpp"
+#endif 
 
 int main(int argc, char** argv)
 {
-    fmt::print("\nPrinting arguments passed in to main.\n");
+    spdlog::set_level(spdlog::level::debug);
+    // spdlog::set_level(spdlog::level::info);
+    spdlog::set_pattern("[%Y-%m-%d %H:%M:%S] [%=16n] %^[%=8l]%$ %v");
 
-    for (int i = 0; i < argc; ++i)
-    {
-        fmt::print("\tArg {}: {}\n", i, argv[i]);
-    }
+/*
+#ifdef TEST_GUI
+    TestParameters params;
 
-    fmt::print("\n");
+    QApplication app(argc, argv);
+    app.setStyle(QStyleFactory::create("Fusion"));
 
-    msu_smdt::com_port fake_com_port_connection {
-        /* port */          "COM4",
-        /* baud_rate */     "9600",
-        /* data_bit */      "8",
-        /* stop_bit */      "0",
-        /* parity */        "0",
-        /* lbusaddress */   "0"
-    };
+    QWidget mainWidget;
+    ChannelWidget channelWidget(nullptr, 0, params);
+    TestStatusWidget testStatusWidget(nullptr);
+    ControlPanelWidget controlPanelWidget(nullptr);
 
-    try
-    {
-        msu_smdt::psu psuobj;
-        psuobj.initialize(fake_com_port_connection);
-        psuobj.start_test(0);
-    }
-    catch(const std::exception& e)
-    {
-        fmt::print("Unable to connect: {}\n\n", e.what());
-    }
+    // QGridLayout* layout = new QGridLayout;
+    QVBoxLayout* layout = new QVBoxLayout;
+    layout->addWidget(&controlPanelWidget);
+    layout->addWidget(&channelWidget);
+    layout->addWidget(&testStatusWidget);
+    mainWidget.setLayout(layout);
 
-    return 0;
+    mainWidget.show();
+
+    spdlog::drop_all();
+
+    return app.exec();
+#else
+    // TestControlOfPowerSupply();
+    TestPSUController();
+#endif
+*/
+
+    QApplication app(argc, argv);
+    app.setStyle(QStyleFactory::create("Fusion"));
+    MainWindow window;
+    window.show();
+    return app.exec();
 }

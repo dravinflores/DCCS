@@ -25,6 +25,7 @@ find_path(
     PATHS "C:/Program Files/CAEN/HV/CAENHVWrapper"
     PATH_SUFFIXES "include/"
     DOC "The header file for the CAEN HV Wrapper Library"
+    REQUIRED
 )
 
 find_package_handle_standard_args(
@@ -37,12 +38,13 @@ find_package_handle_standard_args(
 mark_as_advanced(CAENHVWrapper_LIBRARY CAENHVWrapper_INCLUDE_DIR)
 
 if(CAENHVWrapper_FOUND AND NOT TARGET CAENHVWrapper::CAENHVWrapper)
-    add_library(CAENHVWrapper::CAENHVWrapper STATIC IMPORTED GLOBAL)
+    add_library(CAENHVWrapper::CAENHVWrapper SHARED IMPORTED GLOBAL)
     
     set_target_properties(
         CAENHVWrapper::CAENHVWrapper
         PROPERTIES
-            IMPORTED_LOCATION "${CAENHVWrapper_LIBRARY}"
+            IMPORTED_LOCATION "C:/Windows/System32"
+            IMPORTED_IMPLIB "${CAENHVWrapper_LIBRARY}"
             INTERFACE_INCLUDE_DIRECTORIES "${CAENHVWrapper_INCLUDE_DIR}"
     )
 endif()

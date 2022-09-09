@@ -1,38 +1,56 @@
-# CMakeLists.txt
-
-# Quick note on the CAEN HV Wrapper Library: the only files that actually
-# need to see this library are contained in the source/psu/ folder. Therefore,
-# only this target requires the use of the library, and we can localize 
-# the finding of the library here.
-list(APPEND CMAKE_MODULE_PATH "${CMAKE_SOURCE_DIR}/cmake/")
-find_package(CAENHVWrapper REQUIRED)
-find_package(fmt REQUIRED)
-
 include_directories(${CMAKE_SOURCE_DIR}/source/)
 
-
-# Earlier attempts to create this object attempted to create a 
-# channel object and a psu object, and then link them together
-# into a singular psuobj. This failed spectacularly, for no
-# obvious reason. This method is much simpler.
 add_library(
-    psuobj 
-    OBJECT 
-        psu.cpp psu.hpp channel.cpp channel.hpp hv_channel_interface.hpp
-)
-
-target_include_directories(
-    psuobj
-    PUBLIC
-        CAENHVWrapper::CAENHVWrapper   
-    PRIVATE 
-        fmt::fmt
+    HVInterface
+    OBJECT
+        HVInterface.cpp
+        HVInterface.hpp
+        Port.hpp
 )
 
 target_link_libraries(
-    psuobj
-    PUBLIC
-        CAENHVWrapper::CAENHVWrapper   
-    PRIVATE 
+    HVInterface
+    PRIVATE
         fmt::fmt
+        spdlog::spdlog
+)
+
+if (VIRTUALIZE_HVLIB)
+    add_compile_definitions(VIRTUALIZE_CONNECTION)
+    add_subdirectory(FakeHV)
+    target_link_libraries(
+        HVInterface
+        PRIVATE
+            FakeHV
+    )
+else()
+    list(APPEND CMAKE_MODULE_PATH "${CMAKE_SOURCE_DIR}/cmake/")
+    find_package(CAENHVWrapper REQUIRED)
+
+    target_link_libraries(
+        HVInterface
+        PUBLIC
+            CAENHVWrapper::CAENHVWrapper
+    )
+
+    target_include_directories(
+        HVInterface
+        PUBLIC
+            CAENHVWrapper::CAENHVWrapper
+    )
+endif()
+
+add_library(
+    PSUController
+    STATIC
+        PSUController.cpp
+        PSUController.hpp
+)
+
+target_link_libraries(
+    PSUController
+    PRIVATE
+        HVInterface
+        fmt::fmt
+        spdlog::spdlog
 )

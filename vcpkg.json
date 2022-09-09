@@ -1,9 +1,0 @@
-{
-    "name": "dccs",
-    "version-string": "0.1.0",
-    "homepage": "https://github.com",
-    "description": "Software to control our internal Dark Current Program.",
-    "dependencies": [
-        "fmt"
-    ]
-}
