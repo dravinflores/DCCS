@@ -753,8 +753,7 @@ void MainWindow::writeCSV()
         csv.open(f, std::ios::out);
 
         auto str = fmt::format(
-            "{}, {}, {}, {}, {}, {}",
-            key,
+            "{},{},{},{},{}",
             val.current,
             QDateTime::currentDateTime().toString("dd_MM_yyyy_hh_mm_ss").toStdString(),
             val.voltage,

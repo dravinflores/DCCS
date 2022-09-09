@@ -44,6 +44,7 @@ public slots:
     void receiveChannelPolarity(int channel, int polarity);
     void receiveChannelStatus(int channel, std::string status);
     void receiveTubeDataPacket(TubeData data);
+    void receiveIntrinsicCurrent(int channel, float current);
 
 signals:
     void issueAlert(std::string msg);

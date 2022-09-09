@@ -75,6 +75,8 @@ To build the project, execute the following commands
 > ./build/Debug/dccs.exe
 ```
 
+For more information on the building process, see the `documentation/documentation.md` file.
+
 ## Documentation
 Further documentation on the project can be found as the markdown document
 `documentation/documentation.md`.

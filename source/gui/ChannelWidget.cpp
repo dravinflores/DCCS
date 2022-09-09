@@ -113,3 +113,12 @@ void ChannelWidget::receiveTubeDataPacket(TubeData data)
 {
     dataModel->storeTubeDataPacket(data);
 }
+
+void ChannelWidget::receiveIntrinsicCurrent(int channel, float current)
+{
+    if (channel != this->channel)
+        return;
+
+    name = "CH" + std::to_string(channel) + " (" + this->polarity + ")";
+    channelDataBox->setTitle(QString::fromStdString(name + " " + std::to_string(current) + "nA"));
+}
